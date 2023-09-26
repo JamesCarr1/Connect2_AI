@@ -7,6 +7,7 @@ import engine
 import utils
 
 from pathlib import Path
+from matplotlib import pyplot as plt
 
 if __name__ == '__main__':
     # Setup device-agnostic code
@@ -33,8 +34,8 @@ if __name__ == '__main__':
                                  lr=0.01)
     
     # And train
-    epochs = 10
-    engine.train(model=model,
+    epochs = 5
+    results = engine.train(model=model,
                  train_dataloader=train_dataloader,
                  test_dataloader=test_dataloader,
                  optimizer=optimizer,
@@ -43,3 +44,13 @@ if __name__ == '__main__':
                  epochs=epochs,
                  device=device,
                  accuracy_fn=utils.value_acc)
+
+    results_to_plot = [("value_train_loss", 'r', '-'),
+                       ("prior_train_loss", 'b', '-'),
+                       ("total_train_loss", 'g', '-'),
+                       ("value_test_loss", 'r', '--'),
+                       ("prior_test_loss", 'b', '--'),
+                       ("total_test_loss", 'g', '--')]
+    
+    utils.plot_loss_curves(results=results, labels=results_to_plot)
+    plt.show()

@@ -1,5 +1,7 @@
 import torch
 
+from matplotlib import pyplot as plt
+
 def softmax_extract_mean(actions_logits: torch.Tensor,
                          legal_moves: torch.Tensor):
     """
@@ -31,6 +33,38 @@ def value_acc(preds, labels):
     acc = sum([torch.equal(pred_score, labels[i]) for i, pred_score in enumerate(pred_score)]) / preds.shape[0]
 
     return acc
+
+def plot_loss_curves(results, labels):
+    """Plots training curves of a results dictionary.
+
+    Args:
+        results (dict): dictionary containing list of values, e.g.
+            {"train_loss": [...],
+                "train_acc": [...],
+                "test_loss": [...],
+                "test_acc": [...]}
+        labels: the labels of the dictionary to plot
+    """
+
+    # Figure out how many epochs
+    epochs = range(len(results["total_train_loss"]))
+
+    # Plot loss
+    plt.subplot(1, 2, 1)
+    for label, colour, style in labels:
+        plt.plot(epochs, results[label], label=label, c=colour, linestyle=style)
+    plt.title("Loss")
+    plt.xlabel("Epochs")
+    plt.legend()
+
+    # Plot accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, results["train_acc"], label=f"train_acc", c=colour, linestyle='-')
+    plt.plot(epochs, results["test_acc"], label=f"test_acc", c=colour, linestyle='--')
+    plt.title("Accuracy")
+    plt.xlabel("Epochs")
+    plt.legend()
+
 
 if __name__ == '__main__':
     priors = torch.tensor([[1, 1],
