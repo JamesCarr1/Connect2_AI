@@ -32,9 +32,9 @@ def train_step(model: torch.nn.Module,
     train_loss, acc = 0, 0
 
     # Loop through the dataloader batches
-    for board_state, expanded_legal_moves, expanded_target_priors, winner in dataloader:
+    for board_state, legal_moves_mask, expanded_target_priors, winner in dataloader:
         # Send tensors to device
-        board_state, expanded_legal_moves = board_state.to(device), expanded_legal_moves.to(device)
+        board_state, legal_moves_mask = board_state.to(device), legal_moves_mask.to(device)
         expanded_target_priors, winner = expanded_target_priors.to(device), winner.to(device)
 
         # Unsqueeze winner tensor (to be same size as value_pred)
@@ -44,9 +44,11 @@ def train_step(model: torch.nn.Module,
         actions_logits, value_logits = model(board_state) # for now, just going to ignore softmaxing logits
 
         value_pred = torch.tanh(value_logits)
+        prior_pred = utils.softmax_mask_mean(actions_logits=actions_logits,
+                                            legal_moves_mask=legal_moves_mask)
 
         # Calculate loss
-        loss = value_loss_fn(value_pred, winner) + prior_loss_fn(actions_logits, expanded_target_priors)
+        loss = value_loss_fn(value_pred, winner) + prior_loss_fn(prior_pred, expanded_target_priors)
         train_loss += loss.item()
 
         # Zero grad
@@ -94,9 +96,9 @@ def test_step(model: torch.nn.Module,
 
     with torch.inference_mode():
         # Loop through the dataloader batches
-        for board_state, expanded_legal_moves, expanded_target_priors, winner in dataloader:
+        for board_state, legal_moves_mask, expanded_target_priors, winner in dataloader:
             # Send tensors to device
-            board_state, expanded_legal_moves = board_state.to(device), expanded_legal_moves.to(device)
+            board_state, legal_moves_mask = board_state.to(device), legal_moves_mask.to(device)
             expanded_target_priors, y = expanded_target_priors.to(device), winner.to(device)
 
             # Need to unqueeze winner
@@ -105,10 +107,13 @@ def test_step(model: torch.nn.Module,
             # Forward
             actions_logits, value_logits = model(board_state) # for now, just going to ignore softmaxing logits
 
+            # Convert logits to predictions
             value_pred = torch.tanh(value_logits)
+            prior_pred = utils.softmax_mask_mean(actions_logits=actions_logits,
+                                                 legal_moves_mask=legal_moves_mask)
 
             # Calculate loss
-            loss = value_loss_fn(value_pred, winner) + prior_loss_fn(actions_logits, expanded_target_priors)
+            loss = value_loss_fn(value_pred, winner) + prior_loss_fn(prior_pred, expanded_target_priors)
             test_loss += loss.item()
 
             # Calculate accuracy metrics

@@ -9,6 +9,7 @@ import pandas as pd
 
 import connect2
 import model_builder
+import utils
 
 from matplotlib import pyplot as plt
 from pathlib import Path

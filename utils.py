@@ -1,25 +1,27 @@
 import torch
 
-def softmax_actions_logits(actions_logits: torch.Tensor,
-                           expanded_legal_moves: torch.Tensor):
+def softmax_extract_mean(actions_logits: torch.Tensor,
+                         legal_moves: torch.Tensor):
     """
-    Obtains a length 4 actions_logits tensor. Extracts the action rating of the legal moves, softmaxes them and redistributes the resulting
-    prior prediction.
-
-    args:
-        actions_logits: logits output by the model
-        expanded_legal_moves: Contains [legal_moves, [0] * 4 - len(legal_moves), [len(legal_moves)]]
+    Applies softmax function to logits. Then extracts the legal moves and normalises the result.
     """
-    # Extract the data from expanded_legal_moves
-    legal_moves_true_length = int(expanded_legal_moves[-1].item())
-    legal_moves = expanded_legal_moves[:legal_moves_true_length].to(torch.int64)
+    priors = actions_logits.softmax(dim=0) # apply softmax
+    priors = torch.gather(priors, dim=0, index=legal_moves) # extract just the legal moves
+    priors = torch.div(priors, priors.sum()) # renormalise
 
-    # Now softmax the relevant logits
-    preds = actions_logits.gather(dim=0, index=legal_moves) # extract just the relevant logits
-    preds = preds.softmax(dim=0) # softmax
-    preds = torch.zeros(4).scatter(dim=0, index=legal_moves, src=preds)
+    return priors
 
-    return preds
+def softmax_mask_mean(actions_logits: torch.Tensor,
+                      legal_moves_mask: torch.Tensor):
+    """
+    Applies softmax function to logits. Then masks out the illegal moves and normalises the result.
+    """
+    priors = actions_logits.softmax(dim=1) # apply softmax
+    priors = torch.mul(priors, legal_moves_mask) # mask out illegal moves
+    priors = priors.div(priors.sum(dim=1).unsqueeze(dim=1)) # divide each row by the sum of the row
+
+    return priors
+
 
 def value_acc(preds, labels):
     """
@@ -31,7 +33,14 @@ def value_acc(preds, labels):
     return acc
 
 if __name__ == '__main__':
-    preds = torch.tensor([0.9, 0.7, -0.2, -0.5, -1])
-    labels = torch.tensor([1, 1, 0, 0, -1])
+    priors = torch.tensor([[1, 1],
+                            [2, 2],
+                            [3, 3]], dtype=torch.float32)
+    
+    mask = torch.tensor([[1, 1],
+                        [1, 0],
+                        [1, 1]], dtype=torch.float32)
+    
+    print(priors.shape)
 
-    print(value_acc(preds, labels))
+    print(softmax_mask_mean(priors, mask))

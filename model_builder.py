@@ -1,6 +1,7 @@
 import torch
 import data_generator
 import connect2
+import utils
 
 from torch import nn
 
@@ -59,8 +60,8 @@ class LinearModelV0(torch.nn.Module):
             action_ratings, _ = self.forward(x) # run x through the model
         self.train()
 
-        priors = action_ratings.gather(dim=0, index=possible_moves) # Just gather the relevant priors (ignore impossible moves)
-        priors = torch.softmax(priors, dim=0) # and normalise
+        priors = utils.softmax_extract_mean(actions_logits=action_ratings,
+                                            legal_moves=possible_moves)
 
         return priors.tolist() # return just the values
 

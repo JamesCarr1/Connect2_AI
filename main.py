@@ -33,7 +33,7 @@ if __name__ == '__main__':
                                  lr=0.01)
     
     # And train
-    epochs = 40
+    epochs = 10
     engine.train(model=model,
                  train_dataloader=train_dataloader,
                  test_dataloader=test_dataloader,
