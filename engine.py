@@ -29,7 +29,7 @@ def train_step(model: torch.nn.Module,
     model.train()
 
     # Setup loss and accuracy
-    train_loss, acc = 0, 0
+    train_loss, value_loss, prior_loss, acc = 0, 0, 0, 0
 
     # Loop through the dataloader batches
     for board_state, legal_moves_mask, expanded_target_priors, winner in dataloader:
@@ -47,8 +47,16 @@ def train_step(model: torch.nn.Module,
         prior_pred = utils.softmax_mask_mean(actions_logits=actions_logits,
                                             legal_moves_mask=legal_moves_mask)
 
-        # Calculate loss
+        ### Calculate loss
+
+        # Loss functions
+        vloss = value_loss_fn(value_pred, winner)
+        ploss = prior_loss_fn(prior_pred, expanded_target_priors)
         loss = value_loss_fn(value_pred, winner) + prior_loss_fn(prior_pred, expanded_target_priors)
+
+        # Loss values
+        value_loss += vloss.item()
+        prior_loss += ploss.item()
         train_loss += loss.item()
 
         # Zero grad
@@ -64,10 +72,12 @@ def train_step(model: torch.nn.Module,
         acc += accuracy_fn(value_logits, winner)
 
     # Adjust metrics to get average loss and accuracy per batch
+    value_loss = value_loss / len(dataloader)
+    prior_loss = prior_loss / len(dataloader)
     train_loss = train_loss / len(dataloader)
     acc = acc / len(dataloader)
 
-    return train_loss, acc
+    return value_loss, prior_loss, train_loss, acc
 
 def test_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
@@ -92,19 +102,19 @@ def test_step(model: torch.nn.Module,
     model.eval()
 
     # Setup loss and accuracy
-    test_loss, acc = 0, 0
+    test_loss, value_loss, prior_loss, acc = 0, 0, 0, 0
 
     with torch.inference_mode():
         # Loop through the dataloader batches
         for board_state, legal_moves_mask, expanded_target_priors, winner in dataloader:
-            # Send tensors to device
+            ### Send tensors to device
             board_state, legal_moves_mask = board_state.to(device), legal_moves_mask.to(device)
             expanded_target_priors, y = expanded_target_priors.to(device), winner.to(device)
 
             # Need to unqueeze winner
             winner = winner.unsqueeze(dim=1)
 
-            # Forward
+            ### Forward
             actions_logits, value_logits = model(board_state) # for now, just going to ignore softmaxing logits
 
             # Convert logits to predictions
@@ -112,18 +122,28 @@ def test_step(model: torch.nn.Module,
             prior_pred = utils.softmax_mask_mean(actions_logits=actions_logits,
                                                  legal_moves_mask=legal_moves_mask)
 
-            # Calculate loss
+            ### Calculate loss
+
+            # Loss functions
+            vloss = value_loss_fn(value_pred, winner)
+            ploss = prior_loss_fn(prior_pred, expanded_target_priors)
             loss = value_loss_fn(value_pred, winner) + prior_loss_fn(prior_pred, expanded_target_priors)
+
+            # Loss values
+            value_loss += vloss.item()
+            prior_loss += ploss.item()
             test_loss += loss.item()
 
-            # Calculate accuracy metrics
+            ### Calculate accuracy metrics
             acc += accuracy_fn(value_logits, winner)
 
     # Adjust metrics to get average loss and accuracy per batch
+    value_loss = value_loss / len(dataloader)
+    prior_loss = prior_loss / len(dataloader)
     test_loss = test_loss / len(dataloader)
     acc = acc / len(dataloader)
 
-    return test_loss, acc
+    return value_loss, prior_loss, test_loss, acc
 
 def train(model: torch.nn.Module,
           train_dataloader: torch.utils.data.DataLoader,
@@ -154,29 +174,34 @@ def train(model: torch.nn.Module,
         Dictionary of training and testing loss and accuracy
     """
     # Create empty results dictionary
-    results = {"train_loss": [],
-      "train_acc": [],
-      "test_loss": [],
-      "test_acc": []
+    results = {
+    "value_train_loss": [],
+    "prior_train_loss": [],
+    "total_train_loss": [],
+    "train_acc": [],
+    "value_test_loss": [],
+    "prior_test_loss": [],
+    "total_test_loss": [],
+    "test_acc": []
     }
 
     # Loop through training and testing steps
     for epoch in trange(epochs, desc="Epoch", position=1, leave=False):
         # Train
-        train_loss, train_acc = train_step(model=model,
-                                        dataloader=train_dataloader,
-                                        value_loss_fn=value_loss_fn,
-                                        prior_loss_fn=prior_loss_fn,
-                                        optimizer=optimizer,
-                                        device=device,
-                                        accuracy_fn=accuracy_fn)
+        value_train_loss, prior_train_loss, total_train_loss, train_acc = train_step(model=model,
+                                                                                    dataloader=train_dataloader,
+                                                                                    value_loss_fn=value_loss_fn,
+                                                                                    prior_loss_fn=prior_loss_fn,
+                                                                                    optimizer=optimizer,
+                                                                                    device=device,
+                                                                                    accuracy_fn=accuracy_fn)
         
-        test_loss, test_acc = test_step(model=model,
-                                        dataloader=test_dataloader,
-                                        value_loss_fn=value_loss_fn,
-                                        prior_loss_fn=prior_loss_fn,
-                                        device=device,
-                                        accuracy_fn=accuracy_fn)
+        value_test_loss, prior_test_loss, total_test_loss, test_acc = test_step(model=model,
+                                                                                dataloader=test_dataloader,
+                                                                                value_loss_fn=value_loss_fn,
+                                                                                prior_loss_fn=prior_loss_fn,
+                                                                                device=device,
+                                                                                accuracy_fn=accuracy_fn)
         
         if scheduler is not None:
             scheduler.step()
@@ -185,16 +210,21 @@ def train(model: torch.nn.Module,
         if to_print:
             print(
             f"Epoch: {epoch+1} | "
-            f"train_loss: {train_loss:.5f} | "
+            f"total_train_loss: {total_train_loss:.5f} | "
             f"train_acc: {train_acc:.5f} | "
-            f"test_loss: {test_loss:.5f} | "
+            f"total_test_loss: {total_test_loss:.5f} | "
             f"test_acc: {test_acc:.5f}"
             )
 
         # Update results dict
-        results["train_loss"].append(train_loss)
+        results["value_train_loss"].append(value_train_loss)
+        results["prior_train_loss"].append(prior_train_loss)
+        results["total_train_loss"].append(total_train_loss)
         results["train_acc"].append(train_acc)
-        results["test_loss"].append(test_loss)
+
+        results["value_test_loss"].append(value_test_loss)
+        results["prior_test_loss"].append(prior_test_loss)
+        results["total_test_loss"].append(total_test_loss)
         results["test_acc"].append(test_acc)
     
     return results
