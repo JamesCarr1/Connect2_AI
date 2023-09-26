@@ -9,7 +9,8 @@ def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
                value_loss_fn: torch.nn.Module,
                prior_loss_fn: torch.nn.Module,
-               optimizer: torch.optim.Optimizer,
+               value_optimizer: torch.optim.Optimizer,
+               prior_optimizer: torch.optim.Optimizer,
                device: torch.device,
                accuracy_fn) -> Tuple[float, float]:
     """
@@ -44,29 +45,28 @@ def train_step(model: torch.nn.Module,
         actions_logits, value_logits = model(board_state) # for now, just going to ignore softmaxing logits
 
         value_pred = torch.tanh(value_logits)
-        prior_pred = utils.softmax_mask_mean(actions_logits=actions_logits,
-                                            legal_moves_mask=legal_moves_mask)
+        prior_pred = torch.softmax(actions_logits, dim=1)
 
         ### Calculate loss
 
         # Loss functions
         vloss = value_loss_fn(value_pred, winner)
-        ploss = prior_loss_fn(prior_pred, expanded_target_priors)
-        loss = value_loss_fn(value_pred, winner) + prior_loss_fn(prior_pred, expanded_target_priors)
+        ploss = prior_loss_fn(actions_logits, expanded_target_priors) # CrossEntropyLoss is between LOGITS and target
+        loss = value_loss_fn(value_pred, winner) + prior_loss_fn(actions_logits, expanded_target_priors)
 
         # Loss values
         value_loss += vloss.item()
         prior_loss += ploss.item()
         train_loss += loss.item()
 
-        # Zero grad
-        optimizer.zero_grad()
+        # Zero grad, loss backward and step
+        value_optimizer.zero_grad()
+        vloss.backward(retain_graph=True)
+        value_optimizer.step()
 
-        # Loss backward
-        loss.backward()
-
-        # Optimizer step
-        optimizer.step()
+        prior_optimizer.zero_grad()
+        ploss.backward()
+        prior_optimizer.step()
 
         # Calculate accuracy metrics
         acc += accuracy_fn(value_logits, winner)
@@ -119,15 +119,14 @@ def test_step(model: torch.nn.Module,
 
             # Convert logits to predictions
             value_pred = torch.tanh(value_logits)
-            prior_pred = utils.softmax_mask_mean(actions_logits=actions_logits,
-                                                 legal_moves_mask=legal_moves_mask)
+            prior_pred = torch.softmax(actions_logits, dim=1)
 
             ### Calculate loss
 
             # Loss functions
             vloss = value_loss_fn(value_pred, winner)
-            ploss = prior_loss_fn(prior_pred, expanded_target_priors)
-            loss = value_loss_fn(value_pred, winner) + prior_loss_fn(prior_pred, expanded_target_priors)
+            ploss = prior_loss_fn(actions_logits, expanded_target_priors) # CrossEntropyLoss is between LOGITS and target
+            loss = value_loss_fn(value_pred, winner) + prior_loss_fn(actions_logits, expanded_target_priors)
 
             # Loss values
             value_loss += vloss.item()
@@ -148,7 +147,8 @@ def test_step(model: torch.nn.Module,
 def train(model: torch.nn.Module,
           train_dataloader: torch.utils.data.DataLoader,
           test_dataloader: torch.utils.data.DataLoader,
-          optimizer: torch.optim.Optimizer,
+          prior_optimizer: torch.optim.Optimizer,
+          value_optimizer: torch.optim.Optimizer,
           value_loss_fn: torch.nn.Module,
           prior_loss_fn: torch.nn.Module,
           epochs: int,
@@ -192,7 +192,8 @@ def train(model: torch.nn.Module,
                                                                                     dataloader=train_dataloader,
                                                                                     value_loss_fn=value_loss_fn,
                                                                                     prior_loss_fn=prior_loss_fn,
-                                                                                    optimizer=optimizer,
+                                                                                    value_optimizer=value_optimizer,
+                                                                                    prior_optimizer=prior_optimizer,
                                                                                     device=device,
                                                                                     accuracy_fn=accuracy_fn)
         

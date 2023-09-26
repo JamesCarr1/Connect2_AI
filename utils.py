@@ -3,11 +3,12 @@ import torch
 from matplotlib import pyplot as plt
 
 def softmax_extract_mean(actions_logits: torch.Tensor,
-                         legal_moves: torch.Tensor):
+                         legal_moves: torch.Tensor,
+                         eps=1e-12):
     """
     Applies softmax function to logits. Then extracts the legal moves and normalises the result.
     """
-    priors = actions_logits.softmax(dim=0) # apply softmax
+    priors = actions_logits.softmax(dim=0) + eps # apply softmax. Add eps to prevent divide-by-zero errors
     priors = torch.gather(priors, dim=0, index=legal_moves) # extract just the legal moves
     priors = torch.div(priors, priors.sum()) # renormalise
 

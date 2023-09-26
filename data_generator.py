@@ -93,6 +93,7 @@ class Node:
         weights = scipy.stats.norm(maximum_score, 1).pdf(scores) # find weights from normal curve. COULD ADJUST STD DEV???
 
         return random.choices(list(self.children.items()), weights)[0] # randomly choose based on weights.
+        
 
     def select_action(self, choose_type):
         """
@@ -270,11 +271,12 @@ def normalised_ucb_score(parent: Node, child: Node, Z):
     """Calculates 'ucb_score', then normalises it between 0 """
 
 if __name__ == '__main__':
-    model = model_builder.LinearModelV0(input_shape=4, hidden_units=2, output_shape=1)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model = model_builder.LinearModelV0(input_shape=4, hidden_units=2, output_shape=1).to(device)
     game_generator = GameGenerator(model=model, game_type=connect2.Connect2Game)
 
-    num_games = 1000
-    num_sims = 15
+    num_games = 50
+    num_sims = 10
 
     start = time.time()
     time_taken = game_generator.generate_n_games(num_games=num_games, num_simulations=num_sims)
@@ -290,5 +292,5 @@ if __name__ == '__main__':
 
     df2 = pd.read_pickle(Path(os.getcwd()) / "generated_games" / f"LinearModelV0.1_{num_games}_games_{num_sims}_MCTS_sims.pkl")
 
-    print(df2.head(5))
+    print(df2.head(20))
     

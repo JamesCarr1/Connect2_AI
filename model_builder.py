@@ -15,6 +15,8 @@ class LinearModelV0(torch.nn.Module):
         self.input_shape = input_shape
         self.layer_1 = nn.Sequential(
             nn.Linear(in_features=input_shape, out_features=hidden_units),
+            nn.ReLU(),
+            nn.Linear(in_features=hidden_units, out_features=hidden_units),
             nn.ReLU()
         )
 
