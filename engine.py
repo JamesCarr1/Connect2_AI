@@ -109,7 +109,7 @@ def test_step(model: torch.nn.Module,
         for board_state, legal_moves_mask, expanded_target_priors, winner in dataloader:
             ### Send tensors to device
             board_state, legal_moves_mask = board_state.to(device), legal_moves_mask.to(device)
-            expanded_target_priors, y = expanded_target_priors.to(device), winner.to(device)
+            expanded_target_priors, winner = expanded_target_priors.to(device), winner.to(device)
 
             # Need to unqueeze winner
             winner = winner.unsqueeze(dim=1)

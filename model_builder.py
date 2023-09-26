@@ -25,6 +25,13 @@ class LinearModelV0(torch.nn.Module):
     def __repr__(self):
         return "LinearModelV0"
     
+    def to(self, device):
+        # Updates to to also update self.device
+        super().to(device)
+        self.device = device
+
+        return self
+
     def forward(self, x):
         """
         args:
@@ -51,8 +58,9 @@ class LinearModelV0(torch.nn.Module):
         returns:
             priors: a list containing the probabilities of choosing each legal move.
         """
-        x = torch.tensor(board_state, dtype=torch.float32) # convert board state to a tensor
-        possible_moves = torch.tensor(possible_moves, dtype=torch.int64) # possible moves also needs to be converted to a tensors
+        # Tensors must be transferred to self.device (as they are generated from lists, so are 'cpu' by default)
+        x = torch.tensor(board_state, dtype=torch.float32).to(self.device) # convert board state to a tensor
+        possible_moves = torch.tensor(possible_moves, dtype=torch.int64).to(self.device) # possible moves also needs to be converted to a tensors
 
         # Make a prediction
         self.eval()
@@ -73,7 +81,8 @@ class LinearModelV0(torch.nn.Module):
         returns:
             value: value from -1 to 1 predicting the result.
         """
-        x = torch.tensor(board_state, dtype=torch.float32) # convert to tensor
+        # Tensor must be transferred to self.device (as they are generated from lists, so are 'cpu' by default)
+        x = torch.tensor(board_state, dtype=torch.float32).to(self.device) # convert to tensor
 
         # Make a prediction
         self.eval()
