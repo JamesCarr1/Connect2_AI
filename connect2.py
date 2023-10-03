@@ -38,7 +38,7 @@ class Connect2Game:
         if game_state is not None:
             self.game_state = game_state.copy()
         self.update_available_moves()
-
+    '''
     def get_next_state(self, game_state, to_play, action):
         """
         Sets the board in the current state (game_state) and plays the action
@@ -56,6 +56,14 @@ class Connect2Game:
             return self.game_state
         else:
             raise ValueError
+    '''
+    def get_next_state(self, game_state, to_play, action):
+        """
+        Makes a move. Assumes the move IS possible
+        """
+        self.set_game_state(game_state)
+        self.game_state[action] = to_play
+        return self.game_state
 
     def reverse_board_view(self, game_state):
         """
@@ -66,7 +74,7 @@ class Connect2Game:
         returns:
             reversed_view: current state (from p2's view)
         """
-        return [game_state[self.board_length - 1 - i] * -1 for i in range(self.board_length)]
+        return [piece * -1 for piece in game_state] 
 
     def update_available_moves(self):
         """
@@ -88,6 +96,12 @@ class Connect2Game:
             return 0
         
         return None
+    
+    def get_valid_moves(self, game_state):
+        """
+        Returns a mask of legal moves in a game board.
+        """
+        return [1 if game_state[i] == 0 else 0 for i in range(4)]
 
 if __name__ == '__main__':
     game = Connect2Game()

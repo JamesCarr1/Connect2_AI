@@ -146,7 +146,6 @@ class LinearModelV0(torch.nn.Module):
             value: model rating of current moves
         """
         # Pass through first layer
-        print(x.shape)
         x = self.layer_1(x)
 
         # Now pass through specialised heads
@@ -200,6 +199,25 @@ class LinearModelV0(torch.nn.Module):
 
         return value.item() # returns just the float
     
+    def predict(self, board_state):
+        """
+        Runs the model once and returns the priors (softmaxed) and value (tanhed)
+        """
+
+        # Tensor must be transferred to self.device (as they are generated from lists, so are 'cpu' by default)
+        x = torch.tensor(board_state, dtype=torch.float32).to(self.device) # convert to tensor
+
+        # Make a prediction
+        self.eval()
+        with torch.inference_mode():
+            action_logits, value_logits = self.forward(x) # value needs to be normalised to -1 to 1. tanh is perfect for this
+        self.train()
+
+        action_probs = torch.softmax(action_logits, dim=0)
+        value = torch.tanh(value_logits)
+
+        return action_probs, value
+    
 
 class EvenModel(torch.nn.Module):
     """
@@ -207,6 +225,8 @@ class EvenModel(torch.nn.Module):
     """
     def __init__(self):
         super().__init__()
+        
+        self.gen = 0
 
     def forward(self, game_state, legal_moves):
         value = 0.0 # Always predicts a draw
@@ -219,6 +239,8 @@ class NaiveModel(torch.nn.Module):
 
     def __init__(self):
         super().__init__()
+
+        self.gen = 1
 
     def forward(self, game_state, legal_moves):
         # Weight internal board positions with twice the weight as external ones
@@ -239,6 +261,90 @@ class NaiveModel(torch.nn.Module):
         normalised_priors = [prior / total for prior in priors]
 
         return normalised_priors, value
+
+    def predict(self, game_state):
+        value = 0
+        weights = [0.2, 0.3, 0.3, 0.2]
+        for i, piece in enumerate(game_state):
+            value += piece * weights[i]
+
+        return weights, value
+
+class NaiveUnevenModel(torch.nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+        self.gen = 1
+
+    def forward(self, game_state, legal_moves):
+        # Weight internal board positions with twice the weight as external ones
+        value = 0
+        weights = [0.2, 0.4, 0.4, 0.2]
+        for i, piece in enumerate(game_state):
+            value += piece * weights[i]
+        
+        priors = [0] * len(legal_moves) # know the length of the priors vector
+        for i, move in enumerate(legal_moves): # cycle through moves and weight central square moves more heavily
+            if move == 0 or move == 3:
+                priors[i] = 1
+            else:
+                priors[i] = 2 # weight central squares more highly
+        
+        # Now normalise priors
+        total = sum(priors)
+        normalised_priors = [prior / total for prior in priors]
+
+        return normalised_priors, value
+
+    def predict(self, game_state):
+        value = 0
+        weights = [0.19, 0.29, 0.31, 0.21]
+        for i, piece in enumerate(game_state):
+            value += piece * weights[i]
+
+        return weights, value
+    
+    def __repr__(self):
+        return "NaiveUnevenModel"
+    
+class NaiveUnevenModel2(torch.nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+        self.gen = 1
+
+    def forward(self, game_state, legal_moves):
+        # Weight internal board positions with twice the weight as external ones
+        value = 0
+        weights = [0.2, 0.4, 0.4, 0.2]
+        for i, piece in enumerate(game_state):
+            value += piece * weights[i]
+        
+        priors = [0] * len(legal_moves) # know the length of the priors vector
+        for i, move in enumerate(legal_moves): # cycle through moves and weight central square moves more heavily
+            if move == 0 or move == 3:
+                priors[i] = 1
+            else:
+                priors[i] = 2 # weight central squares more highly
+        
+        # Now normalise priors
+        total = sum(priors)
+        normalised_priors = [prior / total for prior in priors]
+
+        return normalised_priors, value
+
+    def predict(self, game_state):
+        value = 0
+        weights = [0.09, 0.39, 0.41, 0.11]
+        for i, piece in enumerate(game_state):
+            value += piece * weights[i]
+
+        return weights, value
+    
+    def __repr__(self):
+        return "NaiveUnevenModel2"
 
 
 if __name__ == '__main__':
