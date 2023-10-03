@@ -36,10 +36,8 @@ class GameGenerator:
             improved_action_probs = [0] * 4
             for move, node in mcts_root.children.items(): # cycle through possible moves
                 improved_action_probs[move] = node.visit_count # append the visits
-            print(improved_action_probs)
             total = sum(improved_action_probs)
             improved_action_probs = [prob / total for prob in improved_action_probs] # renormalise
-            print(improved_action_probs)
 
             available_moves = [key for key in mcts_root.children.keys()] # get all possible moves
             
