@@ -34,6 +34,7 @@ def train_step(model: torch.nn.Module,
 
     # Loop through the dataloader batches
     for board_state, legal_moves_mask, expanded_target_priors, winner in dataloader:
+        print(expanded_target_priors)
         # Send tensors to device
         board_state, legal_moves_mask = board_state.to(device), legal_moves_mask.to(device)
         expanded_target_priors, winner = expanded_target_priors.to(device), winner.to(device)
@@ -108,6 +109,7 @@ def train_step(model: torch.nn.Module,
 
     # Loop through the dataloader batches
     for board_state, legal_moves_mask, expanded_target_priors, winner in dataloader:
+        #print(expanded_target_priors)
         # Send tensors to device
         board_state, legal_moves_mask = board_state.to(device), legal_moves_mask.to(device)
         expanded_target_priors, winner = expanded_target_priors.to(device), winner.to(device)
@@ -226,7 +228,8 @@ def train(model: torch.nn.Module,
           device: torch.device,
           accuracy_fn,
           scheduler=None,
-          to_print=True):
+          to_print=True,
+          results=None):
     """
     Combines train_step and test_step to train a model for a number of epochs, storing the evaluation metrics
     throughout.
@@ -244,17 +247,18 @@ def train(model: torch.nn.Module,
     returns:
         Dictionary of training and testing loss and accuracy
     """
-    # Create empty results dictionary
-    results = {
-    "value_train_loss": [],
-    "prior_train_loss": [],
-    "total_train_loss": [],
-    "train_acc": [],
-    "value_test_loss": [],
-    "prior_test_loss": [],
-    "total_test_loss": [],
-    "test_acc": []
-    }
+    if results is None:
+        # Create empty results dictionary
+        results = {
+        "value_train_loss": [],
+        "prior_train_loss": [],
+        "total_train_loss": [],
+        "train_acc": [],
+        "value_test_loss": [],
+        "prior_test_loss": [],
+        "total_test_loss": [],
+        "test_acc": []
+        }
 
     # Loop through training and testing steps
     for epoch in trange(epochs, desc="Epoch", position=1, leave=False):
@@ -312,7 +316,8 @@ def train(model: torch.nn.Module,
           accuracy_fn,
           alpha,
           scheduler=None,
-          to_print=True):
+          to_print=True,
+          results=None):
     """
     Combines train_step and test_step to train a model for a number of epochs, storing the evaluation metrics
     throughout.
@@ -330,17 +335,18 @@ def train(model: torch.nn.Module,
     returns:
         Dictionary of training and testing loss and accuracy
     """
-    # Create empty results dictionary
-    results = {
-    "value_train_loss": [],
-    "prior_train_loss": [],
-    "total_train_loss": [],
-    "train_acc": [],
-    "value_test_loss": [],
-    "prior_test_loss": [],
-    "total_test_loss": [],
-    "test_acc": []
-    }
+    if results is None:
+        # Create empty results dictionary
+        results = {
+        "value_train_loss": [],
+        "prior_train_loss": [],
+        "total_train_loss": [],
+        "train_acc": [],
+        "value_test_loss": [],
+        "prior_test_loss": [],
+        "total_test_loss": [],
+        "test_acc": []
+        }
 
     # Loop through training and testing steps
     for epoch in trange(epochs, desc="Epoch", position=1, leave=False):

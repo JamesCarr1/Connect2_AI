@@ -29,6 +29,7 @@ def generate_and_train(model,
     """
     # Setup game generator
     game_generator = data_generator.GameGenerator(model=model, game_type=connect2.Connect2Game)
+    results = None
     for i in range(num_gens):
         # Generate game data
         game_generator.generate_n_games(num_games=num_games, num_simulations=num_sims)
@@ -61,7 +62,8 @@ def generate_and_train(model,
                     epochs=epochs,
                     device=device,
                     accuracy_fn=utils.value_acc,
-                    alpha=alpha)
+                    alpha=alpha,
+                    results=results)
         
         
         # Update model gen and save
@@ -98,12 +100,18 @@ if __name__ == '__main__':
     prior_loss_fn = torch.nn.CrossEntropyLoss()
 
     value_optimizer = torch.optim.Adam(params=model.parameters(),
-                                 lr=0.01)
+                                 lr=0.01, weight_decay=1e-5) # weight decay provides l2 regularisation
     prior_optimizer = torch.optim.Adam(params=model.parameters(),
                                        lr=0.1)
     
     value_scheduler = lr_scheduler.ExponentialLR(value_optimizer, gamma=0.99)
     prior_scheduler = lr_scheduler.ExponentialLR(prior_optimizer, gamma=0.99)
+
+    '''
+    value_optimizer = torch.optim.Adam(params=model.parameters(),
+                                 lr=0.2)
+    value_scheduler = lr_scheduler.MultiStepLR(value_optimizer, gamma=0.1, milestones=[30, 80])
+    '''
 
     
     # results = generate_and_train(model=model,
@@ -120,8 +128,8 @@ if __name__ == '__main__':
 
     results = generate_and_train(model=model,
                        num_games=1000,
-                       num_sims=10,
-                       num_gens=10,
+                       num_sims=40,
+                       num_gens=100,
                        epochs=1,
                        value_loss_fn=value_loss_fn,
                        prior_loss_fn=prior_loss_fn,
@@ -152,7 +160,7 @@ if __name__ == '__main__':
 
     for i, board_state in enumerate(test_vector):
         #print(f"{board_state} | Priors: {qt(target_priors, i)} vs. {qt(pred_priors, i)} | Values: {round(target_values[i].item(), 4)} vs. {round(pred_values[i].item(), 4)}")
-        print(f"{board_state} | Priors: {qt(target_priors, i)} vs. {qt(pred_priors, i)} / {qt(action_logits, i)} / {qt(log_softmaxed, i)} | Values: {round(target_values[i].item(), 4)} vs. {round(pred_values[i].item(), 4)}")
+        print(f"{board_state.tolist()} | Priors: {qt(target_priors, i)} vs. {qt(pred_priors, i)} / {qt(action_logits, i)} / {qt(log_softmaxed, i)} | Values: {round(target_values[i].item(), 4)} vs. {round(pred_values[i].item(), 4)}")
 
     
     """

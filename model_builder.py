@@ -55,59 +55,33 @@ class ConvModelV0(torch.nn.Module):
         x = self.layer_1(self.conv_layer(x.unsqueeze(dim=1)))
 
         # Now pass through specialised heads
-        action_rating = self.action_head(x)
+        action_logits = self.action_head(x)
         value_logits = self.value_head(x) # NOTE THESE ARE NOT NORMALISED TO -1 < y < 1
-        
-        return action_rating, value_logits
-    
-    def predict_priors(self, board_state: list, possible_moves: list) -> list:
-        """
-        Runs the model once, and manipulates the results to return just the priors.
-        args:
-            board_state: the current board state
-            possible_moves: the indexes of all LEGAL moves
-        returns:
-            priors: a list containing the probabilities of choosing each legal move.
-        """
-        # Tensors must be transferred to self.device (as they are generated from lists, so are 'cpu' by default)
-        # Unsqueeze to have shape batch_size, 4
-        x = torch.tensor(board_state, dtype=torch.float32).unsqueeze(dim=0).to(self.device) # convert board state to a tensor
-        possible_moves = torch.tensor(possible_moves, dtype=torch.int64).to(self.device) # possible moves also needs to be converted to a tensors
 
-        # Make a prediction
-        self.eval()
-        with torch.inference_mode():
-            action_ratings, _ = self.forward(x) # run x through the model
-        self.train()
+        return action_logits, value_logits
 
-        action_ratings = action_ratings.squeeze() # squeeze back to normal size
-        priors = utils.softmax_extract_mean(actions_logits=action_ratings,
-                                            legal_moves=possible_moves)
-
-        return priors.tolist() # return just the values
-
-    def predict_value(self, board_state: list) -> float:
+    def predict(self, board_state):
         """
-        Runs the model once, and manupulates the results to return just the values.
-        args:
-            board_state: the current board state
-        returns:
-            value: value from -1 to 1 predicting the result.
+        Runs the model once and returns the priors (softmaxed) and value (tanhed)
         """
+
         # Tensor must be transferred to self.device (as they are generated from lists, so are 'cpu' by default)
+        # x must also be unsqueezed, as it is to be passed through a model which needs batch_size as first dimension
         x = torch.tensor(board_state, dtype=torch.float32).unsqueeze(dim=0).to(self.device) # convert to tensor
 
         # Make a prediction
         self.eval()
         with torch.inference_mode():
-            _, value_logits = self.forward(x) # value needs to be normalised to -1 to 1. tanh is perfect for this
+            action_logits, value_logits = self.forward(x) # value needs to be normalised to -1 to 1. tanh is perfect for this
         self.train()
 
-        value_logits = value_logits.squeeze() # squeeze back to normal size
-        value = torch.tanh(value_logits) # converts to -1 to 1
+        # Apply activation functions. Apply to dim=1 as it has not yet been squeezed.
+        action_probs = torch.softmax(action_logits, dim=1).squeeze() # need to squeeze back after unsqueeze
+        value = torch.tanh(value_logits).squeeze()
 
-        return value.item() # returns just the float
-
+        return action_probs.tolist(), value.item()
+    
+    
 class LinearModelV0(torch.nn.Module):
     def __init__(self, input_shape, hidden_units, output_shape):
         super().__init__()
