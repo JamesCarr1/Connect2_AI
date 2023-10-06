@@ -73,16 +73,22 @@ class GameGenerator:
         """
         Generates n games, each with a MCTS of depth num_simulations. Saves the results to save_file.
         """
-        # Setup empty df
+        # Setup empty lists
+        board_states, winners, improved_priors, legal_moves = [], [], [], []
         df = pd.DataFrame(columns=["Board State", "Winner", "Improved Priors", "Legal Moves"])
         for i in range(num_games):
             # Generate a game
-            board_states, winners, _, improved_priors, legal_moves = self.generate_game(num_simulations=num_simulations)
-            
-            # Add the data to the ROW BY ROW
-            for i, improved_prior in enumerate(improved_priors):
-                # And append to the df
-                df.loc[len(df.index)] = [board_states[i], winners[i], improved_prior, legal_moves[i]]
+            game_data = self.generate_game(num_simulations=num_simulations)
+
+            # Update all the lists
+            board_states += game_data[0][:-1] # game_data[0] INCLUDES the last state (final state, outcome is not None), which we don't want
+            winners += game_data[1][:-1] # game_data[1] INCLUDES the final result (final state, outcome is not None), which we don't want
+            improved_priors += game_data[3]
+            legal_moves += game_data[4]
+        
+        # Combine into a dataframe
+        df = pd.DataFrame(columns=["Board State", "Winner", "Improved Priors", "Legal Moves"],
+                          data = zip(board_states, winners, improved_priors, legal_moves))
         
         # Check the save folder exists. If not, make it
         if not os.path.isdir(save_folder):
@@ -99,8 +105,8 @@ if __name__ == '__main__':
     model = model_builder.NaiveUnevenModel2().to(device)
     game_generator = GameGenerator(model=model, game_type=connect2.Connect2Game)
 
-    num_games = 2
-    num_sims = 500
+    num_games = 1000
+    num_sims = 40
 
     start = time.time()
     time_taken = game_generator.generate_n_games(num_games=num_games, num_simulations=num_sims)
