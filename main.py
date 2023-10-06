@@ -7,6 +7,9 @@ import engine
 import utils
 import data_generator
 import connect2
+import mcts
+
+import pandas as pd
 
 from pathlib import Path
 from matplotlib import pyplot as plt
@@ -98,7 +101,8 @@ if __name__ == '__main__':
     # Setup loss functions and optimizer
     value_loss_fn = torch.nn.MSELoss()
     prior_loss_fn = torch.nn.CrossEntropyLoss()
-
+    
+    # lr 0.01 works well after a bit - maybe should start with lr = 0.005?
     value_optimizer = torch.optim.Adam(params=model.parameters(),
                                  lr=0.01, weight_decay=1e-5) # weight decay provides l2 regularisation
     prior_optimizer = torch.optim.Adam(params=model.parameters(),
@@ -106,12 +110,11 @@ if __name__ == '__main__':
     
     value_scheduler = lr_scheduler.ExponentialLR(value_optimizer, gamma=0.99)
     prior_scheduler = lr_scheduler.ExponentialLR(prior_optimizer, gamma=0.99)
-
-    '''
-    value_optimizer = torch.optim.Adam(params=model.parameters(),
-                                 lr=0.2)
-    value_scheduler = lr_scheduler.MultiStepLR(value_optimizer, gamma=0.1, milestones=[30, 80])
-    '''
+    
+    #value_optimizer = torch.optim.Adam(params=model.parameters(),
+    #                             lr=0.2, weight_decay=1e-5)
+    #value_scheduler = lr_scheduler.MultiStepLR(value_optimizer, gamma=0.1, milestones=[30, 80])
+    
 
     
     # results = generate_and_train(model=model,
@@ -126,11 +129,16 @@ if __name__ == '__main__':
     #                    device=device,
     #                    schedulers=(value_scheduler, prior_scheduler))
 
+    num_games = 1000
+    num_sims = 40
+    num_gens = 100
+    epochs = 1
+
     results = generate_and_train(model=model,
-                       num_games=1000,
-                       num_sims=40,
-                       num_gens=100,
-                       epochs=1,
+                       num_games=num_games,
+                       num_sims=num_sims,
+                       num_gens=num_gens,
+                       epochs=epochs,
                        value_loss_fn=value_loss_fn,
                        prior_loss_fn=prior_loss_fn,
                        value_optimizer=value_optimizer,
@@ -139,48 +147,35 @@ if __name__ == '__main__':
                        schedulers=[value_scheduler],
                        alpha=0.5)
     
-    test_vector = torch.tensor([[1, 0, 0, -1],
-                                [-1, 0, 0, 0],
-                                [0, 0, 1, -1],
-                                [-1, 0, 0, 1],
-                                [0, -1, 0, 0]], dtype=torch.float32).to(device)
-    target_priors = torch.tensor([[0, 0.72979, 0.27020, 0],
-                                  [0, 0.41657, 0.25619, 0.327],
-                                  [0.26969, 0.73030, 0, 0],
-                                  [0, 0.28705, 0.71294, 0],
-                                  [0.27320, 0, 0.33004, 0.396]])
-    target_values = torch.tensor([0, -1, 1, 1, -1])
-    
-    action_logits, value_logits = model(test_vector)
+    # Now going to generate some final test data, and print it
+    game_gen = data_generator.GameGenerator(model=model, game_type=connect2.Connect2Game)
+    game_gen.generate_n_games(num_simulations=num_sims, num_games=100, save_folder = Path(os.getcwd()) / "test_games")
 
-    pred_priors = torch.softmax(action_logits, dim=1)
+    # Now open games
+    file_path = Path(os.getcwd()) / "test_games" / f"{model}.{model.gen}_{100}_games_{num_sims}_MCTS_sims.pkl"
+    batch_size = 10 # get 10 positions
 
-    log_softmaxed = torch.log_softmax(action_logits, dim=1)
-    pred_values = torch.tanh(value_logits)
+    test_data = pd.read_pickle(file_path)
+    print(test_data.sample(n=batch_size))
 
-    for i, board_state in enumerate(test_vector):
-        #print(f"{board_state} | Priors: {qt(target_priors, i)} vs. {qt(pred_priors, i)} | Values: {round(target_values[i].item(), 4)} vs. {round(pred_values[i].item(), 4)}")
-        print(f"{board_state.tolist()} | Priors: {qt(target_priors, i)} vs. {qt(pred_priors, i)} / {qt(action_logits, i)} / {qt(log_softmaxed, i)} | Values: {round(target_values[i].item(), 4)} vs. {round(pred_values[i].item(), 4)}")
-
-    
-    """
-    # Setup dataloaders
-    file_path = Path(os.getcwd()) / "generated_games" / "LinearModelV0.1_1000_games_15_MCTS_sims.pkl"
     train_dataset, test_dataset, train_dataloader, test_dataloader = prepare_data.prepare_dataloaders(file_path=file_path,
-                                                                                                      num_workers=1)
+                                                                                                      num_workers=1,
+                                                                                                      batch_size=batch_size)
+    
+    # Now cycle through first part of dataloader:
+    board_state, legal_moves_mask, target_priors, winner = next(iter(train_dataloader))
 
-    # And train
-    epochs = 100
-    results = engine.train(model=model,
-                 train_dataloader=train_dataloader,
-                 test_dataloader=test_dataloader,
-                 optimizer=optimizer,
-                 value_loss_fn=value_loss,
-                 prior_loss_fn=prior_loss,
-                 epochs=epochs,
-                 device=device,
-                 accuracy_fn=utils.value_acc)
-    """
+    # Get model predictions
+    action_logits, value_logits = model(board_state)
+    action_preds = torch.softmax(action_logits, dim=1)
+    value_preds = torch.tanh(value_logits)
+
+    # And print them
+    for i, board in enumerate(board_state):
+        print(f"{board.tolist()} | "
+              f"Priors: {qt(target_priors, i)} vs. {qt(action_preds, i)} | "
+              f"Values: {round(winner[i].item(), 4)} vs. {round(value_preds[i].item(), 4)}")
+    
     results_to_plot = [("value_train_loss", 'r', '-'),
                        ("prior_train_loss", 'b', '-'),
                        ("total_train_loss", 'g', '-'),

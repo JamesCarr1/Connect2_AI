@@ -141,7 +141,7 @@ def train_step(model: torch.nn.Module,
         optimizer.step()
 
         # Calculate accuracy metrics
-        acc += accuracy_fn(value_logits, winner)
+        acc += accuracy_fn(value_pred, winner)
 
     # Adjust metrics to get average loss and accuracy per batch
     value_loss = value_loss / len(dataloader)
@@ -207,7 +207,7 @@ def test_step(model: torch.nn.Module,
             test_loss += loss.item()
 
             ### Calculate accuracy metrics
-            acc += accuracy_fn(value_logits, winner)
+            acc += accuracy_fn(value_pred, winner)
 
     # Adjust metrics to get average loss and accuracy per batch
     value_loss = value_loss / len(dataloader)

@@ -30,8 +30,8 @@ def value_acc(preds, labels):
     """
     Calculates the accuracy between pred and label, given by count(round(pred) == label) / len(pred)
     """
-    pred_score = torch.round(preds) # rounds to nearest integer to output a score
-    acc = sum([torch.equal(pred_score, labels[i]) for i, pred_score in enumerate(pred_score)]) / preds.shape[0]
+    pred_scores = torch.round(preds) # rounds to nearest integer to output a score
+    acc = sum([torch.equal(pred_score, label) for pred_score, label in zip(pred_scores, labels)]) / preds.shape[0]
 
     return acc
 
