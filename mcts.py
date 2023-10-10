@@ -211,7 +211,7 @@ class MCTS:
             node.value_sum += value if node.to_play == to_play else -value
             node.visit_count += 1
 
-def ucb_score(parent: Node, child: Node, c_ucb=40):
+def ucb_score(parent: Node, child: Node, c_ucb=4):
     """Calculates 'ucb score', which can be used as weights for the MCTS sampling.
     See: 
     https://www.chessprogramming.org/UCT 

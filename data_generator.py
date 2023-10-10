@@ -101,8 +101,10 @@ class GameGenerator:
 
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = model_builder.LinearModelV0(input_shape=4, hidden_units=2, output_shape=1).to(device)
-    model = model_builder.NaiveUnevenModel2().to(device)
+    model = model_builder.ConvModelV0(input_shape=4,
+                                      hidden_units=16,
+                                      output_shape=1,
+                                      kernel_size=3).to(device)
     game_generator = GameGenerator(model=model, game_type=connect2.Connect2Game)
 
     num_games = 1000

@@ -344,5 +344,12 @@ if __name__ == '__main__':
 
     print(f"Target Priors: {target_ARs}")
 
-
+if __name__ == '__main__':
+    model = ConvModelV0(input_shape=4,
+                        hidden_units=16,
+                        output_shape=1,
+                        kernel_size=3).to('cpu')
+    
+    for i in range(10000):
+        model.predict([1, 0, 0, 1])
 
