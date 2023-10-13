@@ -10,6 +10,92 @@ import pandas as pd
 
 from pathlib import Path
 
+class GameInfo:
+    """
+    Contains information used to generate games.
+
+    attr:
+        tree: mcts.Node: the current tree search
+        board_states: the positions the board has been in so far
+        next_state: the next state to be observed
+        actions: the moves made in the game so far
+        improved_priors: priors output by the MCTS
+        legal_moves: the moves that can be made at each step
+        outcome: whether the game has finished
+        winner: list of who won from current player's perspective
+    """
+    def __init__(self,
+                 state=(0, 0, 0, 0),
+                 tree=None,
+                 outcome=None,
+                 winner=None):
+        self.state = state
+        self.tree = tree
+
+        self.board_states = [self.state]
+        self.actions = []
+        self.improved_priors = []
+        self.legal_moves = []
+
+        self.outcome = None
+        self.winner = None
+    
+    def update_improved_priors(self):
+        """
+        Using the data from self.tree, append the new action probabilities to self.improved_priors
+        """
+        # Find the probabilities of each action
+        action_probs = [0] * 4
+        for move, node in self.tree.children.items(): # cycle through possible moves
+            action_probs[move] = node.visit_count # append the visits
+        total = sum(action_probs)
+        action_probs = [prob / total for prob in action_probs] # renormalise
+        self.improved_priors.append(action_probs)
+    
+    def update_legal_moves(self):
+        """
+        Using data from self.tree, append the list of legal moves to self.legal_moves
+        """
+        self.legal_moves.append([key for key in self.tree.children.keys()]) # get all possible moves)
+    
+    def select_action(self):
+        """
+        Performs mcts.Node.select_action on self.tree. Appends the result to self.actions and returns it
+        """
+        action = self.tree.select_action(choose_type='random')
+        self.actions.append(action)
+        return action
+
+    def get_next_state(self, action, game):
+        """
+        Makes the action on self.state, then reverses the board view. Saves the new state.
+        """
+        next_state = game.get_next_state(self.state, to_play=1, action=action)
+        next_state = game.reverse_board_view(next_state)
+        self.board_states.append(next_state)
+        self.state = next_state
+    
+    def update_outcome(self, game):
+        """
+        Checks if the game is over
+        """
+        self.outcome = game.get_outcome_for_player(self.state, 1)
+    
+    def update_winner(self):
+        """
+        Updates winner vector
+        """
+        self.winner = [0] * len(self.board_states)
+        for i in range(len(self.board_states)):
+            if i % 2 == 0: # i.e if i is odd, same as result
+                self.winner[i] = self.outcome
+            else:
+                self.winner[i] = -1 * self.outcome
+        
+        return self.winner
+
+
+
 class GameGenerator:
     def __init__(self, model, game_type: connect2.Connect2Game):
         self.game = game_type()
@@ -99,6 +185,57 @@ class GameGenerator:
         # Save as pickle to maintain lists as lists (csv converts them to strings)
         df.to_pickle(save_path)
 
+    def generate_parallel_games(self, num_simulations, num_games, save_folder=Path(os.getcwd()) / "generated_games"):
+        start_state = (0, 0, 0, 0)
+        games = {i : GameInfo(state=start_state) for i in range(num_games)} # setup games
+        incomplete_games = {key : val for key, val in games.items()} # duplicate games
+
+        calculated_positions = {}
+        while len(incomplete_games) > 0:
+            # Extract the states and run
+            states = {game_info.state for game_info in incomplete_games.values()}
+            roots, calculated_positions = self.mcts.run_parallel(states,
+                                                                 to_play=1,
+                                                                 num_simulations=num_simulations,
+                                                                 calculated_positions=calculated_positions)
+
+            # update the nodes
+            for game_info in incomplete_games.values():
+                game_info.tree = roots[game_info.state]
+                game_info.update_improved_priors()
+                game_info.update_legal_moves()
+                action = game_info.select_action() # also saves the action choice in game_info.actions
+                game_info.get_next_state(action, self.game) # makes the action, reverses board view and updates board_states
+                game_info.update_outcome(self.game)
+            
+            # update incomplete_games
+            incomplete_games = {key : val for key, val in games.items() if val.outcome is None}
+        
+        board_states, winners, improved_priors, legal_moves = [], [], [], []
+        # Games are now finished. Compute winner vector and save
+        for game_info in games.values():
+            #print(game_info.board_states)
+            board_states += game_info.board_states[:-1] # includes final state (which we don't want), so use list slice
+            winners += game_info.update_winner()[:-1]
+
+            improved_priors += game_info.improved_priors
+            legal_moves += game_info.legal_moves
+        
+        # Combine into a dataframe
+        df = pd.DataFrame(columns=["Board State", "Winner", "Improved Priors", "Legal Moves"],
+                          data = zip(board_states, winners, improved_priors, legal_moves))
+        
+        # Check the save folder exists. If not, make it
+        if not os.path.isdir(save_folder):
+            os.mkdir(save_folder)
+        
+        save_path = save_folder / f"{self.model}.{self.model.gen}_{num_games}_games_{num_simulations}_MCTS_sims.pkl"
+
+        # Save as pickle to maintain lists as lists (csv converts them to strings)
+        df.to_pickle(save_path)
+
+
+
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model_builder.ConvModelV0(input_shape=4,
@@ -109,18 +246,18 @@ if __name__ == '__main__':
 
     num_games = 1000
     num_sims = 40
-
-    start = time.time()
+    
+    serial_start = time.time()
     time_taken = game_generator.generate_n_games(num_games=num_games, num_simulations=num_sims)
-    end = time.time()
-    print(f"Generated and saved {num_games} games in {end - start} seconds")
+    serial_end = time.time()
+    print(f"Serially generated and saved {num_games} games in {serial_end - serial_start} seconds")
+    
+    parallel_start = time.time()
+    time_taken = game_generator.generate_parallel_games(num_games=num_games, num_simulations=num_sims)
+    parallel_end = time.time()
+    print(f"Parallelely generated and saved {num_games} games in {parallel_end - parallel_start} seconds")
 
-    """
-    for i, action in enumerate(actions):
-        print(f"(Board State, winner): {board_states[i]} | Chosen action: {action} | Priors: {priors[i]} | Improved Priors: {improved_priors[i]} | Legal moves: {legal_moves[i]}")
 
-    print(f"Final position: {board_states[-1]}")
-    """
 
     df2 = pd.read_pickle(Path(os.getcwd()) / "generated_games" / f"{model}.1_{num_games}_games_{num_sims}_MCTS_sims.pkl")
 

@@ -409,12 +409,12 @@ class MCTS:
         # Initialise num_games root nodes. MC trees are deterministic given the starting state, so only need to create
         # one for each unique state
         roots = {state: Node(0, to_play) for state in unique_states}
-
-        # Make prediction
-        action_probs, values = self.parallel_predict_mask_and_normalise(new_states)
-        results = zip(action_probs, values)
-        # And add them to the dictionary
-        calculated_positions |= dict(zip(new_states, results))
+        if len(new_states) > 0:
+            # Make prediction
+            action_probs, values = self.parallel_predict_mask_and_normalise(new_states)
+            results = zip(action_probs, values)
+            # And add them to the dictionary
+            calculated_positions |= dict(zip(new_states, results))
 
         # Now expand all root nodes
         for state in unique_states:
@@ -460,7 +460,7 @@ class MCTS:
         
         #roots[(0, 0, 0, 0)].plot()
 
-        return roots
+        return roots, calculated_positions
 
     def predict_mask_and_normalise(self, state):
         """
