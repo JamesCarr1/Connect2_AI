@@ -492,7 +492,7 @@ class MCTS:
 
         # mask
         masks = self.game.parallel_get_valid_moves(states)
-        action_probs = action_probs * masks
+        action_probs = action_probs * masks.to('cuda') #### NOTE: NEED TO FIX
 
         # and normalise
         # Sum along the 1st axis. Unsqueeze ensures the sum divides every row, dim=0 would 
