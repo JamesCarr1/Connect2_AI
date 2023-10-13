@@ -5,6 +5,7 @@ import connect2
 
 import math
 import random
+import time
 
 import numpy as np
 
@@ -135,6 +136,89 @@ class Node:
         for child in self.children.values():
             child.plot()
 
+class NodeInfo:
+    """
+    Holds information about a given search as part of MCTS.run_parralel()
+
+    attr:
+        node: Node: the bottom of the tree currently being searched
+        search_path: list[Node] - the nodes traversed to reach an unexpanded node in the tree
+        action: int - the action taken to move from parent.state to new_state
+        parent: Node - the parent node of the current node of interest
+        next_state: the position after action has been played from parent.state
+        value: the outcome of the match or model prediction
+        action_probs: the probability of each action according to the model
+    """
+    def __init__(self,
+                 node=None,
+                 action=None,
+                 parent=None,
+                 next_state=None,
+                 value = None,
+                 action_probs=None):
+        self.node = node
+        self.search_path = [self.node]
+        self.action = action
+        self.parent = parent
+        self.next_state = next_state
+
+        self.value = value
+        self.action_probs = action_probs
+    
+    def to_unexpanded(self):
+        """
+        Performs the node.select_child() method until an unexpanded node is reached, updating internal attributes along the way
+        """
+        while self.node.expanded():
+            # Choose an action
+            self.action, self.node = self.node.select_child()
+            # Save the new node to search path
+            self.search_path.append(self.node)
+
+    def expand(self):
+        """
+        Expands the current node using next state and action probs
+        """
+        self.node.expand(self.next_state, self.action_probs)
+
+    def update_parent(self):
+        self.parent = self.search_path[-2]
+    
+    def get_next_state(self, game):
+        """
+        From the parent state, makes self.action and flips the board view
+        args:
+            game: the game instance used for this tree search
+        """
+        self.next_state = game.get_next_state(start_state=self.parent.state, # make the move
+                                              to_play=1,
+                                              action=self.action)
+        self.next_state = game.reverse_board_view(self.next_state) # and reverse board view
+    
+    def get_outcome_for_player(self, game):
+        """
+        Checks if the game is over - if so, update value
+        """
+        outcome = game.get_outcome_for_player(self.next_state, player=1)
+        if outcome is not None:
+            self.value = outcome
+    
+    def backpropogate(self):
+        for node in reversed(self.search_path):
+            node.value_sum += self.value if node.to_play == self.parent.to_play else -self.value
+            node.visit_count += 1
+
+    def update_results(self, results):
+        """
+        Extracts the information given from calculated_positions dictionary.
+        args:
+            results: tuple(action_probs, value) - note value is in list form, so also needs to be extracted
+        """
+        action_probs, value = results
+
+        self.action_probs = action_probs
+        self.value = value[0] # value is is list
+
 class MCTS:
     """
     Implements Monte Carlo tree search
@@ -189,6 +273,195 @@ class MCTS:
 
         return root
 
+    def run_parallel(self, states, to_play, num_simulations=5, choose_type='random', calculated_positions={}):
+        """
+        Runs num_games Monte Carlo tree seaches, starting at states.
+        args:
+            states: list containing the state at the root of each tree. len = num_games. Note states must be a list of TUPLES
+            to_play: the player whose turn it is.
+            num_simulations: the depth of the MCTS
+            choose_type: 'random' == ucb_score, 'greedy' == exploit term in ucb_score
+            calculated_positions: board_states which have already been calculated
+        returns:
+            roots: dict containing all the root nodes
+        """
+
+        # Find all unique starting positions
+        ### COULD INVESTIGATE USING torch.unique, dim=0!!
+        unique_states = set(states)
+        # Find all states which have NOT been passed through the model
+        new_states = [state for state in unique_states if state not in calculated_positions.keys()]
+        
+        # Initialise num_games root nodes. MC trees are deterministic given the starting state, so only need to create
+        # one for each unique state
+        roots = {state: Node(0, to_play) for state in unique_states}
+
+        # Make prediction
+        action_probs, values = self.parallel_predict_mask_and_normalise(new_states)
+        # zip them up
+        results = zip(action_probs, values)
+        # And add them to the dictionary
+        calculated_positions |= dict(zip(new_states, results))
+
+        # Now expand all root nodes
+        for i, state in enumerate(unique_states):
+            action_probs, _ = calculated_positions[state]
+            roots[state].expand(state, action_probs)
+        
+        roots[0, 0, 0, 0].plot()
+
+        # Now simulate num_simulations times
+        for _ in range(num_simulations):
+            # Setup the bases of the trees
+            nodes = roots
+            start_states = nodes.keys()
+            search_paths = {state: [node] for state, node in nodes.items()}
+            actions = {}
+
+            # Now get to unexpanded nodes
+            for state in nodes:
+                while nodes[state].node.expanded():
+                    # Choose an action
+                    action, nodes[state].node = nodes[state].select_child()
+                    # Save the node to search path
+                    search_paths[state].append(nodes[state])
+                # Save the final action chosen
+                actions[state] = action
+            
+            # And save all parents
+            parent_to_play = list(search_paths.values())[0][-2].to_play
+            parents = {start_state: search_path[-2].state for start_state, search_path in search_paths.items()}
+
+            # And get all the next states
+            next_states = self.game.parallel_get_next_states(parents.values(), to_play=1, actions=actions) # note the output is a tensor
+            next_states = self.game.parallel_get_next_states(parents, to_play, actions)
+            ############# NEW CLASS TO HOLD ALL THIS INFO (actions, parent, parent state, value etc.)
+            # and flip board view
+            next_states = self.game.parallel_reverse_board_view(next_states) # note the output is a list
+
+            # Create a translation reference from parent state to next state
+            children = dict(zip(parents.keys(), next_states))
+
+            # Now find all new states
+            new_states = {state for state in next_states if state not in calculated_positions}
+
+            # Find if games have finished
+            values = {}
+            new_not_finished = [] # list of states which are not finished
+            for new_state in enumerate(new_states):
+                values[new_state] = self.game.get_outcome_for_player(new_state, to_play=1) # get the results
+                if values[new_state] is None:
+                    new_not_finished.append(state) # create a list of games which have not finished, and are new states
+                else:
+                    calculated_positions[new_state] = values[new_state]
+            
+            # Calculate these positions
+            results = zip(self.parallel_predict_mask_and_normalise(new_not_finished))
+
+            # and add to the dictionary
+            calculated_positions |= dict(zip(new_not_finished, results))
+
+            # Now go back through and update values dict
+            for new_state in new_states:
+                if values[new_state] is None:
+                    # update with calculated value
+                    values[new_state] = calculated_positions[new_state]
+            
+            # Now go through and create a new dict with the results
+            node_values = {}
+            for start_state in nodes: # cycle through the starting states
+                # find the parent state
+                parent_state = parents[start_state]
+                # find the new state
+                new_state = children[start_state]
+                # and add the result
+                node_values[start_state] = calculated_positions[new_state]
+
+            # Now backpropogate all nodes
+            for start_state in nodes:
+                self.backpropogate(search_path=search_paths[start_state],
+                                   value=node_values[start_state],
+                                   to_play=parent_to_play * -1)
+            roots[(0, 0, 0, 0)].plot()
+        
+        roots[(0, 0, 0, 0)].plot()
+        return roots
+
+    def run_parallel(self, states, to_play, num_simulations=5, choose_type='random', calculated_positions={}):
+        """
+        Runs num_games Monte Carlo tree seaches, starting at states.
+        args:
+            states: list containing the state at the root of each tree. len = num_games. Note states must be a list of TUPLES
+            to_play: the player whose turn it is.
+            num_simulations: the depth of the MCTS
+            choose_type: 'random' == ucb_score, 'greedy' == exploit term in ucb_score
+            calculated_positions: board_states which have already been calculated
+        returns:
+            roots: dict containing all the root nodes
+        """
+
+        # Find all unique starting positions
+        ### COULD INVESTIGATE USING torch.unique, dim=0!!
+        unique_states = set(states)
+        # Find all states which have NOT been passed through the model
+        new_states = [state for state in unique_states if state not in calculated_positions.keys()]
+        
+        # Initialise num_games root nodes. MC trees are deterministic given the starting state, so only need to create
+        # one for each unique state
+        roots = {state: Node(0, to_play) for state in unique_states}
+
+        # Make prediction
+        action_probs, values = self.parallel_predict_mask_and_normalise(new_states)
+        results = zip(action_probs, values)
+        # And add them to the dictionary
+        calculated_positions |= dict(zip(new_states, results))
+
+        # Now expand all root nodes
+        for state in unique_states:
+            action_probs, _ = calculated_positions[state]
+            roots[state].expand(state, action_probs)
+        
+        #roots[0, 0, 0, 0].plot()
+
+        # Now simulate num_simulations times
+        for _ in range(num_simulations):
+            # Setup the info object to contain all info about each tree search
+            nodes = {state: NodeInfo(node=roots[state]) for state in roots} # now have a translation from state to all state info
+
+            # Perform tree search setup on each NodeInfo
+            for node_info in nodes.values():
+                node_info.to_unexpanded()
+                node_info.update_parent()
+                node_info.get_next_state(self.game) # this includes making the move AND flipping the board
+                node_info.get_outcome_for_player(self.game) # check if the game is over
+            
+            # Search through node_infos and add the ones with uncalculated positions to a set. Only choose positions which have 
+            # have no outcome yet
+            new_states = {ni.next_state for ni in nodes.values() if (ni.next_state not in calculated_positions) and (ni.value is None)}
+            new_states = list(new_states) # torch.tensor does not understand sets
+            
+            # Calculate these positions and add to the dictionary
+            if len(new_states) > 0:
+                action_probs, values = self.parallel_predict_mask_and_normalise(new_states)
+                results = zip(action_probs, values)
+                calculated_positions |= dict(zip(new_states, results))
+
+            # Go back through and update values and action probs. Then expand the node
+            for node_info in nodes.values():
+                if node_info.value is None:
+                    node_info.update_results(calculated_positions[node_info.next_state])
+                    node_info.expand()
+            
+            # Backpropogate all nodes
+            for node_info in nodes.values():
+                node_info.backpropogate()
+            
+            #roots[(0, 0, 0, 0)].plot()
+        
+        #roots[(0, 0, 0, 0)].plot()
+
+        return roots
+
     def predict_mask_and_normalise(self, state):
         """
         Uses model to predict priors, masks out the illegal moves and renormalises
@@ -205,6 +478,31 @@ class MCTS:
         action_probs = [prob / total for prob in action_probs]
 
         return action_probs, value
+    
+    def parallel_predict_mask_and_normalise(self, states):
+        """
+        Uses model to predict priors, masks out illegal moves and renormalises
+        """
+
+        # Convert to a tensor
+        states = torch.tensor(states, dtype=torch.float32)
+
+        # predict. Note this returns a TENSOR (as bitwise multiplication is easier)
+        action_probs, values = self.model.parallel_predict(states)
+
+        # mask
+        masks = self.game.parallel_get_valid_moves(states)
+        action_probs = action_probs * masks
+
+        # and normalise
+        # Sum along the 1st axis. Unsqueeze ensures the sum divides every row, dim=0 would 
+        # divide every column by the corresponding element of the sum
+        sums = torch.sum(action_probs, dim=1).unsqueeze(dim=1)
+        action_probs = torch.div(action_probs, sums)
+
+        return action_probs.tolist(), values.tolist()
+
+
 
     def backpropogate(self, search_path, value, to_play):
         for node in reversed(search_path):
@@ -234,9 +532,26 @@ def ucb_score(parent: Node, child: Node, c_ucb=4):
     return explore_score + exploit_score
 
 if __name__ == '__main__':
-    model = model_builder.NaiveUnevenModel()
+    model = model_builder.ConvModelV0(input_shape=4, hidden_units=16, output_shape=1, kernel_size=3).to('cpu')
     game = connect2.Connect2Game()
 
     mcts = MCTS(model, game)
 
-    mcts.run([0, 0, 0, 0], 1, 200)
+    # Parallel run 1000 'games' starting at (0, 0, 0, 0):
+    #states = [(0, 0, 0, 0)] * 1000
+    states = [(-1, 0, 0, 0),
+                (0, -1, 0, 0),
+                           (0, 0, -1, 0),
+                           (0, 0, 0, -1)] * 250
+    parallel_start = time.time()
+    mcts.run_parallel([(0, 0, 0, 0)], 1, num_simulations=40)
+    parallel_end = time.time()
+
+    # Serial run 1000 'games' starting at (0, 0, 0, 0)
+    serial_start = time.time()
+    for state in states:
+        mcts.run(state, to_play=1, num_simulations=40)
+    serial_end = time.time()
+
+    print(f"Parallel method took {parallel_end - parallel_start} seconds")
+    print(f"Serial method took {serial_end - serial_start} seconds")

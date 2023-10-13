@@ -81,6 +81,21 @@ class ConvModelV0(torch.nn.Module):
 
         return action_probs.tolist(), value.item()
     
+    def parallel_predict(self, board_states):
+        """
+        Runs the model with multiple board states and predicts priors and values. Note eval mode is NOT called here
+        """
+        # Send to device
+        x = board_states.to(self.device)
+
+        with torch.inference_mode():
+            action_logits, value_logits = self.forward(x)
+        
+        # Apply activation functions
+        action_probs = torch.softmax(action_logits, dim=1)
+        value = torch.tanh(value_logits)
+
+        return action_probs, value
     
 class LinearModelV0(torch.nn.Module):
     def __init__(self, input_shape, hidden_units, output_shape):
