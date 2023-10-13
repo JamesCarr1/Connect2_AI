@@ -35,7 +35,7 @@ def generate_and_train(model,
     results = None
     for i in range(num_gens):
         # Generate game data
-        game_generator.generate_n_games(num_games=num_games, num_simulations=num_sims)
+        game_generator.generate_parallel_games(num_games=num_games, num_simulations=num_sims)
         print(f"Generated games for Generation {i+1}")
 
         # Setup dataloaders
@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     num_games = 1000
     num_sims = 40
-    num_gens = 100
+    num_gens = 30
     epochs = 1
 
     results = generate_and_train(model=model,
@@ -149,7 +149,8 @@ if __name__ == '__main__':
     
     # Now going to generate some final test data, and print it
     game_gen = data_generator.GameGenerator(model=model, game_type=connect2.Connect2Game)
-    game_gen.generate_n_games(num_simulations=num_sims, num_games=100, save_folder = Path(os.getcwd()) / "test_games")
+    #game_gen.generate_n_games(num_simulations=num_sims, num_games=100, save_folder = Path(os.getcwd()) / "test_games")
+    game_gen.generate_parallel_games(num_simulations=num_sims, num_games=100, save_folder = Path(os.getcwd()) / "test_games")
 
     # Now open games
     file_path = Path(os.getcwd()) / "test_games" / f"{model}.{model.gen}_{100}_games_{num_sims}_MCTS_sims.pkl"
