@@ -28,6 +28,7 @@ def generate_and_train(model,
                        device,
                        value_acc_fn,
                        alpha=0.5,
+                       save_every=0,
                        schedulers=None):
     """
     Generates a dataset, then trains from it. Saves the updated model and then repeats for num_gens.
@@ -75,12 +76,17 @@ def generate_and_train(model,
         
         # Update model gen and save
         model.gen += 1
-        save_path = Path(os.getcwd()) / "models" / f"{model}.{model.gen}.pt"
-        torch.save(model.state_dict(), save_path)
+        if save_every and (i % save_every == 0):
+            save_path = Path(os.getcwd()) / "models" / f"{model}.{model.gen}.pt"
+            torch.save(model.state_dict(), save_path)
 
         if schedulers is not None:
             for scheduler in schedulers:
                 scheduler.step()
+    
+    # Save at the end
+    save_path = Path(os.getcwd()) / "models" / f"{model}.{model.gen}.pt"
+    torch.save(model.state_dict(), save_path)
 
     return results
 
@@ -123,7 +129,7 @@ if __name__ == '__main__':
     
     num_games = 1000
     num_sims = 40
-    num_gens = 3
+    num_gens = 30
     epochs = 1
 
     results = generate_and_train(model=model,
@@ -151,7 +157,7 @@ if __name__ == '__main__':
 
     test_data = pd.read_pickle(file_path)
     print(test_data.sample(n=batch_size))
-    
+
     train_dataset, test_dataset, train_dataloader, test_dataloader = prepare_data.prepare_dataloaders(file_path=file_path,
                                                                                                       num_workers=1,
                                                                                                       batch_size=batch_size)
@@ -176,8 +182,9 @@ if __name__ == '__main__':
                        ("value_test_loss", 'r', '--'),
                        ("prior_test_loss", 'b', '--'),
                        ("total_test_loss", 'g', '--')]
-    
+    """
     utils.plot_loss_curves(results=results, labels=results_to_plot)
     plt.show()
+    """
     
     
