@@ -1,5 +1,6 @@
 import os
 import torch
+import torchmetrics
 
 import prepare_data
 import model_builder
@@ -25,6 +26,7 @@ def generate_and_train(model,
                        value_optimizer,
                        prior_optimizer,
                        device,
+                       value_acc_fn,
                        alpha=0.5,
                        schedulers=None):
     """
@@ -64,7 +66,7 @@ def generate_and_train(model,
                     prior_loss_fn=prior_loss_fn,
                     epochs=epochs,
                     device=device,
-                    accuracy_fn=utils.value_acc,
+                    value_acc_fn=value_acc_fn,
                     alpha=alpha,
                     results=results)
         
@@ -110,6 +112,8 @@ if __name__ == '__main__':
     
     value_scheduler = lr_scheduler.ExponentialLR(value_optimizer, gamma=0.99)
     prior_scheduler = lr_scheduler.ExponentialLR(prior_optimizer, gamma=0.99)
+
+    value_acc_fn = torchmetrics.Accuracy(task='multiclass', num_classes=3).to(device)
     
     #value_optimizer = torch.optim.Adam(params=model.parameters(),
     #                             lr=0.2, weight_decay=1e-5)
@@ -144,6 +148,7 @@ if __name__ == '__main__':
                        value_optimizer=value_optimizer,
                        prior_optimizer=prior_optimizer,
                        device=device,
+                       value_acc_fn=value_acc_fn,
                        schedulers=[value_scheduler],
                        alpha=0.5)
     

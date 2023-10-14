@@ -86,7 +86,7 @@ def train_step(model: torch.nn.Module,
                prior_loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
                device: torch.device,
-               accuracy_fn,
+               value_acc_fn,
                alpha) -> Tuple[float, float]:
     """
     Performs a single epoch training step.
@@ -141,7 +141,7 @@ def train_step(model: torch.nn.Module,
         optimizer.step()
 
         # Calculate accuracy metrics
-        acc += accuracy_fn(value_pred, winner)
+        acc += value_acc_fn(value_pred.round() + 1, winner + 1) # value is -1 to 1 but torchmetrics accuracy wants 0 to 2
 
     # Adjust metrics to get average loss and accuracy per batch
     value_loss = value_loss / len(dataloader)
@@ -156,7 +156,7 @@ def test_step(model: torch.nn.Module,
                value_loss_fn: torch.nn.Module,
                prior_loss_fn: torch.nn.Module,
                device: torch.device,
-               accuracy_fn,
+               value_acc_fn,
                alpha) -> Tuple[float, float]:
     """
     Performs a single epoch testing step.
@@ -207,7 +207,7 @@ def test_step(model: torch.nn.Module,
             test_loss += loss.item()
 
             ### Calculate accuracy metrics
-            acc += accuracy_fn(value_pred, winner)
+            acc += value_acc_fn(value_pred.round() + 1, winner + 1) # value is -1 to 1 but torchmetrics accuracy wants 0 to 2
 
     # Adjust metrics to get average loss and accuracy per batch
     value_loss = value_loss / len(dataloader)
@@ -226,7 +226,7 @@ def train(model: torch.nn.Module,
           prior_loss_fn: torch.nn.Module,
           epochs: int,
           device: torch.device,
-          accuracy_fn,
+          value_acc_fn,
           scheduler=None,
           to_print=True,
           results=None):
@@ -270,14 +270,14 @@ def train(model: torch.nn.Module,
                                                                                     value_optimizer=value_optimizer,
                                                                                     prior_optimizer=prior_optimizer,
                                                                                     device=device,
-                                                                                    accuracy_fn=accuracy_fn)
+                                                                                    value_acc_fn=value_acc_fn)
         
         value_test_loss, prior_test_loss, total_test_loss, test_acc = test_step(model=model,
                                                                                 dataloader=test_dataloader,
                                                                                 value_loss_fn=value_loss_fn,
                                                                                 prior_loss_fn=prior_loss_fn,
                                                                                 device=device,
-                                                                                accuracy_fn=accuracy_fn)
+                                                                                value_acc_fn=value_acc_fn)
         
         if scheduler is not None:
             scheduler.step()
@@ -313,7 +313,7 @@ def train(model: torch.nn.Module,
           prior_loss_fn: torch.nn.Module,
           epochs: int,
           device: torch.device,
-          accuracy_fn,
+          value_acc_fn,
           alpha,
           scheduler=None,
           to_print=True,
@@ -357,7 +357,7 @@ def train(model: torch.nn.Module,
                                                                                     prior_loss_fn=prior_loss_fn,
                                                                                     optimizer=optimizer,
                                                                                     device=device,
-                                                                                    accuracy_fn=accuracy_fn,
+                                                                                    value_acc_fn=value_acc_fn,
                                                                                     alpha=alpha)
         
         value_test_loss, prior_test_loss, total_test_loss, test_acc = test_step(model=model,
@@ -365,7 +365,7 @@ def train(model: torch.nn.Module,
                                                                                 value_loss_fn=value_loss_fn,
                                                                                 prior_loss_fn=prior_loss_fn,
                                                                                 device=device,
-                                                                                accuracy_fn=accuracy_fn,
+                                                                                value_acc_fn=value_acc_fn,
                                                                                 alpha=alpha)
         
         if scheduler is not None:
