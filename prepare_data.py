@@ -8,38 +8,29 @@ from pathlib import Path
 class GameDataset(Dataset):
     def __init__(self, game_file):
         # Open the data using pandas
-        self.data = pd.read_pickle(game_file)
+        self.data = pd.read_pickle(game_file)   
 
-        # Unpack the relevant data columns
+        # Unpack the relevant data columns. NOTE: target_priors (produced by the prior improvement policy) have no relation to the
+        # original priors and so are already masked (MCTS can't 'visit' positions where a piece already exists) -> these positions
+        # have zero visits -> zero improved prior.
         self.board_states = torch.tensor(self.data["Board State"].to_list(), dtype=torch.float32) # input into the model
         self.winners = torch.tensor(self.data["Winner"].to_list(), dtype=torch.float32) # target output of the value head
+        self.target_priors = torch.tensor(self.data["Improved Priors"].to_list(), dtype=torch.float32) # target priors
 
-        # These are of varying length, so cannot be converted to tensors yet
-        self.target_priors = self.data["Improved Priors"].to_list() # target priors (i.e those produced by the prior improvement policy)
+        # These are of varying length, so cannot be converted to tensors
         self.legal_moves = self.data["Legal Moves"].to_list() # legal moves, allows reconstruction of target priors to full length
+
+        
+        self.legal_moves_masks = torch.zeros((len(self.legal_moves), 4)) # used to mask illegal move priors
+        for i, legal_move in enumerate(self.legal_moves): # cycle each row and add 1 to legal move positions
+            self.legal_moves_masks[i][legal_move] = 1
+
     
     def __len__(self):
         return len(self.board_states)
     
     def __getitem__(self, idx):
-        # First need to expand target_priors
-        expanded_target_priors = torch.tensor(self.target_priors[idx], dtype=torch.float32)
-
-        # Convert legal moves to a tensor by appending -1s
-        legal_moves_tensor = torch.tensor(self.legal_moves[idx], dtype=torch.int64)
-
-        # Create the legal move mask (used by softmax_mask_mean)
-        legal_move_mask = torch.zeros(4).index_fill_(dim=0, index=legal_moves_tensor, value=1)
-
-        # Now expand with zeros
-        expanded_target_priors = torch.zeros(4).scatter(dim=0, index=legal_moves_tensor, src=expanded_target_priors)
-
-        # Now get other data
-        board_state = self.board_states[idx]
-        winner = self.winners[idx]
-
-        # Return input (board_state and legal moves) and the targets for the two outputs - expanded_target_priors and winner
-        return board_state, legal_move_mask, expanded_target_priors, winner
+        return self.board_states[idx], self.legal_moves_masks[idx], self.target_priors[idx], self.winners[idx]
     
 def prepare_dataloaders(file_path,
                         num_workers=os.cpu_count(),

@@ -141,7 +141,7 @@ def train_step(model: torch.nn.Module,
         optimizer.step()
 
         # Calculate accuracy metrics
-        acc += value_acc_fn(value_pred.round() + 1, winner + 1) # value is -1 to 1 but torchmetrics accuracy wants 0 to 2
+        acc += value_acc_fn(value_pred.round() + 1, winner + 1).item() # value is -1 to 1 but torchmetrics accuracy wants 0 to 2
 
     # Adjust metrics to get average loss and accuracy per batch
     value_loss = value_loss / len(dataloader)
@@ -207,7 +207,7 @@ def test_step(model: torch.nn.Module,
             test_loss += loss.item()
 
             ### Calculate accuracy metrics
-            acc += value_acc_fn(value_pred.round() + 1, winner + 1) # value is -1 to 1 but torchmetrics accuracy wants 0 to 2
+            acc += value_acc_fn(value_pred.round() + 1, winner + 1).item() # value is -1 to 1 but torchmetrics accuracy wants 0 to 2
 
     # Adjust metrics to get average loss and accuracy per batch
     value_loss = value_loss / len(dataloader)
@@ -305,6 +305,37 @@ def train(model: torch.nn.Module,
     
     return results
 
+
+def print_results(to_print, epoch, total_train_loss, train_acc, total_test_loss, test_acc):
+    # Print results
+    if to_print:
+        print(
+        f"Epoch: {epoch+1} | "
+        f"total_train_loss: {total_train_loss:.5f} | "
+        f"train_acc: {train_acc:.5f} | "
+        f"total_test_loss: {total_test_loss:.5f} | "
+        f"test_acc: {test_acc:.5f}"
+        )
+
+def update_results(scheduler, results, value_train_loss, prior_train_loss, total_train_loss, train_acc, value_test_loss,
+                   prior_test_loss, total_test_loss, test_acc):
+    if scheduler is not None:
+        scheduler.step()
+    
+    # Update results dict
+    results["value_train_loss"].append(value_train_loss)
+    results["prior_train_loss"].append(prior_train_loss)
+    results["total_train_loss"].append(total_train_loss)
+    results["train_acc"].append(train_acc)
+
+    results["value_test_loss"].append(value_test_loss)
+    results["prior_test_loss"].append(prior_test_loss)
+    results["total_test_loss"].append(total_test_loss)
+    results["test_acc"].append(test_acc)
+
+    return results
+
+
 def train(model: torch.nn.Module,
           train_dataloader: torch.utils.data.DataLoader,
           test_dataloader: torch.utils.data.DataLoader,
@@ -315,8 +346,9 @@ def train(model: torch.nn.Module,
           device: torch.device,
           value_acc_fn,
           alpha,
+          generation,
           scheduler=None,
-          to_print=True,
+          print_every=0,
           results=None):
     """
     Combines train_step and test_step to train a model for a number of epochs, storing the evaluation metrics
@@ -368,11 +400,12 @@ def train(model: torch.nn.Module,
                                                                                 value_acc_fn=value_acc_fn,
                                                                                 alpha=alpha)
         
+        
         if scheduler is not None:
             scheduler.step()
 
         # Print results
-        if to_print:
+        if print_every and (generation % print_every == 0):
             print(
             f"Epoch: {epoch+1} | "
             f"total_train_loss: {total_train_loss:.5f} | "
@@ -391,5 +424,5 @@ def train(model: torch.nn.Module,
         results["prior_test_loss"].append(prior_test_loss)
         results["total_test_loss"].append(total_test_loss)
         results["test_acc"].append(test_acc)
-    
+
     return results

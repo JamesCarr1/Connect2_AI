@@ -43,7 +43,8 @@ def generate_and_train(model,
         # Setup dataloaders
         file_path = Path(os.getcwd()) / "generated_games" / f"{model}.{i+1}_{num_games}_games_{num_sims}_MCTS_sims.pkl"
         train_dataset, test_dataset, train_dataloader, test_dataloader = prepare_data.prepare_dataloaders(file_path=file_path,
-                                                                                                      num_workers=1)
+                                                                                                      num_workers=1,
+                                                                                                      batch_size=128)
         
         # # And train
         # results = engine.train(model=model,
@@ -67,6 +68,7 @@ def generate_and_train(model,
                     epochs=epochs,
                     device=device,
                     value_acc_fn=value_acc_fn,
+                    generation=i,
                     alpha=alpha,
                     results=results)
         
@@ -119,23 +121,9 @@ if __name__ == '__main__':
     #                             lr=0.2, weight_decay=1e-5)
     #value_scheduler = lr_scheduler.MultiStepLR(value_optimizer, gamma=0.1, milestones=[30, 80])
     
-
-    
-    # results = generate_and_train(model=model,
-    #                    num_games=1000,
-    #                    num_sims=30,
-    #                    num_gens=100,
-    #                    epochs=1,
-    #                    value_loss_fn=value_loss_fn,
-    #                    prior_loss_fn=prior_loss_fn,
-    #                    value_optimizer=value_optimizer,
-    #                    prior_optimizer=prior_optimizer,
-    #                    device=device,
-    #                    schedulers=(value_scheduler, prior_scheduler))
-
     num_games = 1000
     num_sims = 40
-    num_gens = 30
+    num_gens = 3
     epochs = 1
 
     results = generate_and_train(model=model,
@@ -163,7 +151,7 @@ if __name__ == '__main__':
 
     test_data = pd.read_pickle(file_path)
     print(test_data.sample(n=batch_size))
-
+    
     train_dataset, test_dataset, train_dataloader, test_dataloader = prepare_data.prepare_dataloaders(file_path=file_path,
                                                                                                       num_workers=1,
                                                                                                       batch_size=batch_size)
@@ -172,7 +160,7 @@ if __name__ == '__main__':
     board_state, legal_moves_mask, target_priors, winner = next(iter(train_dataloader))
 
     # Get model predictions
-    action_logits, value_logits = model(board_state)
+    action_logits, value_logits = model(board_state.to(device))
     action_preds = torch.softmax(action_logits, dim=1)
     value_preds = torch.tanh(value_logits)
 
@@ -191,4 +179,5 @@ if __name__ == '__main__':
     
     utils.plot_loss_curves(results=results, labels=results_to_plot)
     plt.show()
+    
     

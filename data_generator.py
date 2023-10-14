@@ -244,7 +244,7 @@ if __name__ == '__main__':
                                       kernel_size=3).to(device)
     game_generator = GameGenerator(model=model, game_type=connect2.Connect2Game)
 
-    num_games = 1000
+    num_games = 20
     num_sims = 40
     
     serial_start = time.time()
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     time_taken = game_generator.generate_parallel_games(num_games=num_games, num_simulations=num_sims)
     parallel_end = time.time()
     print(f"Parallelely generated and saved {num_games} games in {parallel_end - parallel_start} seconds")
-
+    
 
 
     df2 = pd.read_pickle(Path(os.getcwd()) / "generated_games" / f"{model}.1_{num_games}_games_{num_sims}_MCTS_sims.pkl")
