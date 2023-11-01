@@ -97,7 +97,7 @@ class GameInfo:
 
 
 class GameGenerator:
-    def __init__(self, model, game_type: connect2.Connect2Game):
+    def __init__(self, model, game_type: connect2.Connect2):
         self.game = game_type()
         self.model = model
         self.mcts = mcts.MCTS(model=self.model, game=self.game)
@@ -105,7 +105,6 @@ class GameGenerator:
     def generate_game(self, num_simulations=8):
         # Define starting position
         starting_state = [0, 0, 0, 0]
-        self.game.set_game_state(starting_state)
         result = None # game is not over
 
         # Define lists of positions
@@ -242,7 +241,7 @@ if __name__ == '__main__':
                                       hidden_units=16,
                                       output_shape=1,
                                       kernel_size=3).to(device)
-    game_generator = GameGenerator(model=model, game_type=connect2.Connect2Game)
+    game_generator = GameGenerator(model=model, game_type=connect2.Connect2)
 
     num_games = 20
     num_sims = 40

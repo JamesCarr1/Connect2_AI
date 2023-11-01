@@ -148,9 +148,10 @@
   },
   "active": "38e621c0808e9312",
   "lastOpenFiles": [
+    "connect2.py/classes/Connect2.md",
+    "connect2.py/classes/Connect2Game.md",
     "connect2.py/connect2.py.md",
     "model_builder.py/model_builder.py.md",
-    "connect2.py/classes/Connect2Game.md",
     "model_builder.py/classes/EvenModel.md",
     "model_builder.py/classes/NaiveUnevenModel.md",
     "model_builder.py/classes/NaiveModel.md",

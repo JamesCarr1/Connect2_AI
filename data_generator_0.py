@@ -33,13 +33,13 @@ class Node:
         else:
             return 0
     
-    def expand(self, model: torch.nn.Module, game: connect2.Connect2Game,
+    def expand(self, model: torch.nn.Module, game: connect2.Connect2,
                state):
         """
         Expands the tree with all possible moves from the current state.
         args:
             model: torch.nn.Module: model that provides the prior value
-            game: connect2.Connect2Game: object containing game data.
+            game: connect2.Connect2: object containing game data.
             board_position: the arrangement of pieces on the board at this nodes
         """
         # Update the game with the current position
@@ -64,7 +64,7 @@ class Node:
     def set_depth(self, depth):
         self.depth = depth
     
-    def find_legal_moves(self, game: connect2.Connect2Game):
+    def find_legal_moves(self, game: connect2.Connect2):
         """
         Updates legal moves and stores them
         """
@@ -126,7 +126,7 @@ class Node:
         """
         return ucb_score(self, child)
 
-    def plot(self, model, game: connect2.Connect2Game):
+    def plot(self, model, game: connect2.Connect2):
         """
         Plots the current tree structure extending from this node
         """
@@ -139,7 +139,7 @@ class MCTS:
     """
     Implements Monte Carlo tree search
     """
-    def __init__(self, model: torch.nn.Module, game=connect2.Connect2Game()):
+    def __init__(self, model: torch.nn.Module, game=connect2.Connect2()):
         self.game = game
         self.model = model
     
@@ -185,7 +185,7 @@ class MCTS:
             node.visit_count += 1
 
 class GameGenerator:
-    def __init__(self, model, game_type: connect2.Connect2Game):
+    def __init__(self, model, game_type: connect2.Connect2):
         self.game = game_type()
         self.model = model
         self.mcts = MCTS(model=self.model, game=self.game)
@@ -270,7 +270,7 @@ def ucb_score(parent: Node, child: Node):
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model_builder.NonLinearModelV0(input_shape=4, hidden_units=2, output_shape=1).to(device)
-    game_generator = GameGenerator(model=model, game_type=connect2.Connect2Game)
+    game_generator = GameGenerator(model=model, game_type=connect2.Connect2)
 
     num_games = 50
     num_sims = 10

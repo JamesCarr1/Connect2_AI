@@ -2,27 +2,9 @@ import torch
 
 from utils import Stack
 
-class Connect2Game:
-    def __init__(self, board_length=4):
-        self.board_length = board_length # number of positions on the board
-        self.game_state = [0] * board_length # Setup empty game board
-
-        self.outcome = None # 1 for p1 win, 0 for draw, -1 for p2 win
-        self.player = 1 # player's turn
-
-        self.available_moves = list(range(self.board_length)) # indices of free squares
-        self.moves = Stack() # keeps track of the moves that have been played
-
+class Connect2:
 
     ### (a) - Methods used to get and update game states and outcomes in series
-
-
-    def set_game_state(self, game_state):
-        """
-        Sets the game's current state.
-        """
-        if game_state is not None:
-            self.game_state = game_state.copy()
     
     def get_next_state(self, start_state, to_play, action):
         """
@@ -48,19 +30,17 @@ class Connect2Game:
         """
         Checks if the game has finished
         """ 
-        for i in range(self.board_length - 1):
-            if game_state[i] == game_state[i+1] and game_state[i] != 0: # check if there is a winner
-                self.outcome = game_state[i] # Set current player as winner ***** Check player
-                return self.outcome
+        for i, piece in enumerate(game_state[:-1]):
+            if piece == game_state[i+1] and piece != 0: # check if there is a winner
+                outcome = piece # Set current player as winner ***** Check player
+                return outcome
         
         if game_state.count(0) == 0: # i.e all spaces are taken
             return 0
         
         return None
     
-
     ### (b) - Methods used to get and update game states in parallel
-
 
     def parallel_get_valid_moves_masks(self, game_states: torch.Tensor):
         """
@@ -75,8 +55,26 @@ class Connect2Game:
         return res
 
 
-    ### (c) - Methods used to play the game
+class Connect2Game(Connect2):
+    """
+    Contains extra methods and attributes used to play a game of Connect2.
+    """
+    def __init__(self, board_length):
+        self.board_length = board_length # number of positions on the board
+        self.game_state = [0] * board_length # Setup empty game board
 
+        self.player = 1 # player's turn
+        self.outcome = None
+
+        self.available_moves = list(range(self.board_length)) # indices of free squares
+        self.moves = Stack() # keeps track of the moves that have been played
+
+    def set_game_state(self, game_state):
+        """
+        Sets the game's current state.
+        """
+        if game_state is not None:
+            self.game_state = game_state.copy()
 
     def push(self, move):
         """
@@ -114,9 +112,17 @@ class Connect2Game:
         """
         if self.game_state is not None:
             self.available_moves = [i for i, piece in enumerate(self.game_state) if piece == 0] # add the move if square is empty (0)
+    
+    def get_outcome(self):
+        """
+        Performs Connect2.get_outcome(), but updates self.outcome
+        """
+        self.outcome = super().get_outcome()
+
+        return self.outcome
 
 if __name__ == '__main__':
-    game = Connect2Game()
+    game = Connect2()
     
     while game.outcome is None:
         print(f"Game board: {game.game_state}")

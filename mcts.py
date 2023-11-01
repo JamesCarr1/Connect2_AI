@@ -223,7 +223,7 @@ class MCTS:
     """
     Implements Monte Carlo tree search
     """
-    def __init__(self, model: torch.nn.Module, game=connect2.Connect2Game()):
+    def __init__(self, model: torch.nn.Module, game=connect2.Connect2()):
         self.game = game
         self.model = model
     
@@ -420,7 +420,7 @@ def ucb_score(parent: Node, child: Node, c_ucb=4):
 
 if __name__ == '__main__':
     model = model_builder.ConvModelV0(input_shape=4, hidden_units=16, output_shape=1, kernel_size=3).to('cpu')
-    game = connect2.Connect2Game()
+    game = connect2.Connect2()
 
     mcts = MCTS(model, game)
 

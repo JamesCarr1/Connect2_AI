@@ -34,7 +34,7 @@ def generate_and_train(model,
     Generates a dataset, then trains from it. Saves the updated model and then repeats for num_gens.
     """
     # Setup game generator
-    game_generator = data_generator.GameGenerator(model=model, game_type=connect2.Connect2Game)
+    game_generator = data_generator.GameGenerator(model=model, game_type=connect2.Connect2)
     results = None
     for i in range(num_gens):
         # Generate game data
@@ -147,7 +147,7 @@ if __name__ == '__main__':
                        alpha=0.5)
     
     # Now going to generate some final test data, and print it
-    game_gen = data_generator.GameGenerator(model=model, game_type=connect2.Connect2Game)
+    game_gen = data_generator.GameGenerator(model=model, game_type=connect2.Connect2)
     #game_gen.generate_n_games(num_simulations=num_sims, num_games=100, save_folder = Path(os.getcwd()) / "test_games")
     game_gen.generate_parallel_games(num_simulations=num_sims, num_games=100, save_folder = Path(os.getcwd()) / "test_games")
 
