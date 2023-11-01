@@ -1,0 +1,174 @@
+{
+  "main": {
+    "id": "86ae04ce73d0534c",
+    "type": "split",
+    "children": [
+      {
+        "id": "a30840bb32593a7b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "38e621c0808e9312",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "connect2.py/classes/Connect2Game.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "0fb3a47a56c2e1cf",
+    "type": "split",
+    "children": [
+      {
+        "id": "50380f4c1d1e8dee",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "699efffaf642016d",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "771a97efe72b1f23",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c2d3bbf2ff1379c0",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "986974975e68ca38",
+    "type": "split",
+    "children": [
+      {
+        "id": "261ef8526f1c082b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "be856e2fa7d74975",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "connect2.py/classes/Connect2Game.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "6e85b6d6f84c6959",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "connect2.py/classes/Connect2Game.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "f535eec9ff8e6c97",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "c6bc6e64d4d163e4",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "connect2.py/classes/Connect2Game.md"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false
+    }
+  },
+  "active": "38e621c0808e9312",
+  "lastOpenFiles": [
+    "connect2.py/connect2.py.md",
+    "model_builder.py/model_builder.py.md",
+    "connect2.py/classes/Connect2Game.md",
+    "model_builder.py/classes/EvenModel.md",
+    "model_builder.py/classes/NaiveUnevenModel.md",
+    "model_builder.py/classes/NaiveModel.md",
+    "model_builder.py/classes/NonLinearModelV0.md",
+    "model_builder.py/classes/ConvModelV0.md",
+    "model_builder.py/classes/Model.md",
+    "README.md",
+    "Untitled.canvas",
+    "model_builder.py/classes",
+    "model_builder.py",
+    "connect2.py/classes/abc.md",
+    "connect2.py/classes",
+    "connect2.py",
+    "engine.md",
+    "data_generator.md",
+    "main.md",
+    "mcts.md",
+    "prepare_data.md",
+    "model_builder.md"
+  ]
+}

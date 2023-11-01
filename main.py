@@ -129,7 +129,7 @@ if __name__ == '__main__':
     
     num_games = 1000
     num_sims = 40
-    num_gens = 30
+    num_gens = 10
     epochs = 1
 
     results = generate_and_train(model=model,

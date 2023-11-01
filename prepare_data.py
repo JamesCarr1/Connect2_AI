@@ -68,7 +68,7 @@ def prepare_dataloaders(file_path,
     return train_dataset, test_dataset, train_dataloader, test_dataloader
 
 if __name__ == '__main__':
-    file_path = Path(os.getcwd()) / "generated_games" / "LinearModelV0.1_200_games_7_MCTS_sims.pkl"
+    file_path = Path(os.getcwd()) / "generated_games" / "NonLinearModelV0.1_200_games_7_MCTS_sims.pkl"
 
     train_dataset, test_dataset, train_dataloader, test_dataloader = prepare_dataloaders(file_path=file_path)
 

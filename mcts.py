@@ -195,11 +195,11 @@ class NodeInfo:
                                               action=self.action)
         self.next_state = game.reverse_board_view(self.next_state) # and reverse board view
     
-    def get_outcome_for_player(self, game):
+    def get_outcome(self, game):
         """
         Checks if the game is over - if so, update value
         """
-        outcome = game.get_outcome_for_player(self.next_state, player=1)
+        outcome = game.get_outcome(self.next_state)
         if outcome is not None:
             self.value = outcome
     
@@ -256,7 +256,7 @@ class MCTS:
             next_state = self.game.reverse_board_view(next_state)
 
             # Checks if game is over
-            value = self.game.get_outcome_for_player(next_state, player=1)
+            value = self.game.get_outcome(next_state)
 
             # If game is NOT over:
             if value is None:
@@ -272,120 +272,6 @@ class MCTS:
         #root.plot()
 
         return root
-
-    def run_parallel(self, states, to_play, num_simulations=5, choose_type='random', calculated_positions={}):
-        """
-        Runs num_games Monte Carlo tree seaches, starting at states.
-        args:
-            states: list containing the state at the root of each tree. len = num_games. Note states must be a list of TUPLES
-            to_play: the player whose turn it is.
-            num_simulations: the depth of the MCTS
-            choose_type: 'random' == ucb_score, 'greedy' == exploit term in ucb_score
-            calculated_positions: board_states which have already been calculated
-        returns:
-            roots: dict containing all the root nodes
-        """
-
-        # Find all unique starting positions
-        ### COULD INVESTIGATE USING torch.unique, dim=0!!
-        unique_states = set(states)
-        # Find all states which have NOT been passed through the model
-        new_states = [state for state in unique_states if state not in calculated_positions.keys()]
-        
-        # Initialise num_games root nodes. MC trees are deterministic given the starting state, so only need to create
-        # one for each unique state
-        roots = {state: Node(0, to_play) for state in unique_states}
-
-        # Make prediction
-        action_probs, values = self.parallel_predict_mask_and_normalise(new_states)
-        # zip them up
-        results = zip(action_probs, values)
-        # And add them to the dictionary
-        calculated_positions |= dict(zip(new_states, results))
-
-        # Now expand all root nodes
-        for i, state in enumerate(unique_states):
-            action_probs, _ = calculated_positions[state]
-            roots[state].expand(state, action_probs)
-        
-        roots[0, 0, 0, 0].plot()
-
-        # Now simulate num_simulations times
-        for _ in range(num_simulations):
-            # Setup the bases of the trees
-            nodes = roots
-            start_states = nodes.keys()
-            search_paths = {state: [node] for state, node in nodes.items()}
-            actions = {}
-
-            # Now get to unexpanded nodes
-            for state in nodes:
-                while nodes[state].node.expanded():
-                    # Choose an action
-                    action, nodes[state].node = nodes[state].select_child()
-                    # Save the node to search path
-                    search_paths[state].append(nodes[state])
-                # Save the final action chosen
-                actions[state] = action
-            
-            # And save all parents
-            parent_to_play = list(search_paths.values())[0][-2].to_play
-            parents = {start_state: search_path[-2].state for start_state, search_path in search_paths.items()}
-
-            # And get all the next states
-            next_states = self.game.parallel_get_next_states(parents.values(), to_play=1, actions=actions) # note the output is a tensor
-            next_states = self.game.parallel_get_next_states(parents, to_play, actions)
-            ############# NEW CLASS TO HOLD ALL THIS INFO (actions, parent, parent state, value etc.)
-            # and flip board view
-            next_states = self.game.parallel_reverse_board_view(next_states) # note the output is a list
-
-            # Create a translation reference from parent state to next state
-            children = dict(zip(parents.keys(), next_states))
-
-            # Now find all new states
-            new_states = {state for state in next_states if state not in calculated_positions}
-
-            # Find if games have finished
-            values = {}
-            new_not_finished = [] # list of states which are not finished
-            for new_state in enumerate(new_states):
-                values[new_state] = self.game.get_outcome_for_player(new_state, to_play=1) # get the results
-                if values[new_state] is None:
-                    new_not_finished.append(state) # create a list of games which have not finished, and are new states
-                else:
-                    calculated_positions[new_state] = values[new_state]
-            
-            # Calculate these positions
-            results = zip(self.parallel_predict_mask_and_normalise(new_not_finished))
-
-            # and add to the dictionary
-            calculated_positions |= dict(zip(new_not_finished, results))
-
-            # Now go back through and update values dict
-            for new_state in new_states:
-                if values[new_state] is None:
-                    # update with calculated value
-                    values[new_state] = calculated_positions[new_state]
-            
-            # Now go through and create a new dict with the results
-            node_values = {}
-            for start_state in nodes: # cycle through the starting states
-                # find the parent state
-                parent_state = parents[start_state]
-                # find the new state
-                new_state = children[start_state]
-                # and add the result
-                node_values[start_state] = calculated_positions[new_state]
-
-            # Now backpropogate all nodes
-            for start_state in nodes:
-                self.backpropogate(search_path=search_paths[start_state],
-                                   value=node_values[start_state],
-                                   to_play=parent_to_play * -1)
-            roots[(0, 0, 0, 0)].plot()
-        
-        roots[(0, 0, 0, 0)].plot()
-        return roots
 
     def run_parallel(self, states, to_play, num_simulations=5, choose_type='random', calculated_positions={}):
         """
@@ -433,7 +319,7 @@ class MCTS:
                 node_info.to_unexpanded()
                 node_info.update_parent()
                 node_info.get_next_state(self.game) # this includes making the move AND flipping the board
-                node_info.get_outcome_for_player(self.game) # check if the game is over
+                node_info.get_outcome(self.game) # check if the game is over
             
             # Search through node_infos and add the ones with uncalculated positions to a set. Only choose positions which have 
             # have no outcome yet
@@ -470,7 +356,7 @@ class MCTS:
         action_probs, value = self.model.predict(state) # predict priors
 
         # mask
-        mask = self.game.get_valid_moves(state) # mask illegal moves
+        mask = self.game.get_valid_moves_mask(state) # mask illegal moves
         action_probs = [prob * mask_val for prob, mask_val in zip(action_probs, mask)] # calculate probs
         
         # and normalise
@@ -491,8 +377,9 @@ class MCTS:
         action_probs, values = self.model.parallel_predict(states)
 
         # mask
-        masks = self.game.parallel_get_valid_moves(states)
-        action_probs = action_probs * masks.to('cuda') #### NOTE: NEED TO FIX
+        masks = self.game.parallel_get_valid_moves_masks(states)
+        #action_probs = action_probs * masks.to('cuda') #### NOTE: NEED TO FIX
+        action_probs = action_probs * masks.to('cpu') #### NOTE: NEED TO FIX
 
         # and normalise
         # Sum along the 1st axis. Unsqueeze ensures the sum divides every row, dim=0 would 

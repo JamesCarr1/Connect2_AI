@@ -70,7 +70,7 @@ class ConvModelV0(Model):
 
         # Linear layer
         self.layer_1 = nn.Sequential(
-            nn.Flatten(), # flatten back to a (batch_size, units) (from batch_size, 1, units)
+            nn.Flatten(), # flatten back to (batch_size, units) from (batch_size, 1, units)
             nn.Linear(in_features=hidden_units * (5 - kernel_size), out_features=hidden_units)
         )
 

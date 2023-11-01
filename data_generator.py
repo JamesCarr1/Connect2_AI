@@ -79,7 +79,7 @@ class GameInfo:
         """
         Checks if the game is over
         """
-        self.outcome = game.get_outcome_for_player(self.state, 1)
+        self.outcome = game.get_outcome(self.state)
     
     def update_winner(self):
         """
@@ -142,7 +142,7 @@ class GameGenerator:
             board_states.append(next_state)
 
             # Now check if the game is over
-            result = self.game.get_outcome_for_player(next_state, 1)
+            result = self.game.get_outcome(next_state)
         
         # Now create winner vector
         winner = [0] * len(board_states)

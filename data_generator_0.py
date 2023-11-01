@@ -269,7 +269,7 @@ def ucb_score(parent: Node, child: Node):
 
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = model_builder.LinearModelV0(input_shape=4, hidden_units=2, output_shape=1).to(device)
+    model = model_builder.NonLinearModelV0(input_shape=4, hidden_units=2, output_shape=1).to(device)
     game_generator = GameGenerator(model=model, game_type=connect2.Connect2Game)
 
     num_games = 50
@@ -287,7 +287,7 @@ if __name__ == '__main__':
     print(f"Final position: {board_states[-1]}")
     """
 
-    df2 = pd.read_pickle(Path(os.getcwd()) / "generated_games" / f"LinearModelV0.1_{num_games}_games_{num_sims}_MCTS_sims.pkl")
+    df2 = pd.read_pickle(Path(os.getcwd()) / "generated_games" / f"NonLinearModelV0.1_{num_games}_games_{num_sims}_MCTS_sims.pkl")
 
     print(df2.head(20))
     
