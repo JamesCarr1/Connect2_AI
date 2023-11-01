@@ -2,6 +2,48 @@ import torch
 
 from matplotlib import pyplot as plt
 
+class EmptyStackException(Exception):
+    def __init__(self, message):
+        super().__init__()
+        self.message = message
+
+class Stack:
+    class StackNode:
+        """
+        Inner class of Stack, the nodes of the stack. Contains the data and a pointer to the next location in the stack.
+        """
+        def __init__(self, data):
+            self.data = data
+            self.next = None
+    
+    def __init__(self):
+        self.top = None
+    
+    def pop(self):
+        # Throw an error if the stack is empty
+        if (self.top == None):
+            raise EmptyStackException("Cannot pop from an empty stack")
+
+        item = self.top.data
+        self.top = self.top.next
+
+        return item
+    
+    def push(self, item):
+        new_node = Stack.StackNode(item)
+        new_node.next = self.top
+        self.top = new_node
+
+    def peek(self):
+        # Throw an error if stack is empty
+        if (self.top == None):
+            raise EmptyStackException("Cannot peek an empty stack")
+        
+        return self.top.data
+    
+    def is_empty(self):
+        return self.top == None
+
 def softmax_extract_mean(actions_logits: torch.Tensor,
                          legal_moves: torch.Tensor,
                          eps=1e-12):

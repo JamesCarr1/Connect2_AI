@@ -1,5 +1,7 @@
 import torch
 
+from utils import Stack
+
 class Connect2Game:
     def __init__(self, board_length=4):
         self.board_length = board_length # number of positions on the board
@@ -9,7 +11,7 @@ class Connect2Game:
         self.player = 1 # player's turn
 
         self.available_moves = list(range(self.board_length)) # indices of free squares
-        self.moves = [] # keeps track of the moves that have been played
+        self.moves = Stack() # keeps track of the moves that have been played
 
 
     ### (a) - Methods used to get and update game states and outcomes in series
@@ -72,7 +74,9 @@ class Connect2Game:
 
         return res
 
+
     ### (c) - Methods used to play the game
+
 
     def push(self, move):
         """
@@ -89,7 +93,7 @@ class Connect2Game:
             if self.get_outcome() is None: # i.e if the game is not finished
                 self.update_available_moves()
                 self.player *= -1
-                self.moves.append(move)
+                self.moves.push(move)
         else:
             raise ValueError
     
@@ -100,7 +104,7 @@ class Connect2Game:
         returns:
             last_move: The last move played
         """
-        last_move = self.moves.pop(-1)
+        last_move = self.moves.pop()
         self.game_state[last_move] = 0
         return last_move
 
