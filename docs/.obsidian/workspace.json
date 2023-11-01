@@ -13,7 +13,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "connect2.py/classes/Connect2Game.md",
+                "file": "engine.py/engine.py.md",
                 "mode": "source",
                 "source": false
               }
@@ -85,7 +85,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "connect2.py/classes/Connect2Game.md",
+                "file": "engine.py/engine.py.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -102,7 +102,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "connect2.py/classes/Connect2Game.md",
+                "file": "engine.py/engine.py.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -125,7 +125,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "connect2.py/classes/Connect2Game.md"
+                "file": "engine.py/engine.py.md"
               }
             }
           }
@@ -148,10 +148,16 @@
   },
   "active": "38e621c0808e9312",
   "lastOpenFiles": [
-    "connect2.py/classes/Connect2.md",
-    "connect2.py/classes/Connect2Game.md",
+    "engine.py/engine.py.md",
     "connect2.py/connect2.py.md",
+    "utils.py/classes/Stack.md",
     "model_builder.py/model_builder.py.md",
+    "engine.py",
+    "utils.py/classes",
+    "utils.py",
+    "utils.py",
+    "connect2.py/classes/Connect2Game.md",
+    "connect2.py/classes/Connect2.md",
     "model_builder.py/classes/EvenModel.md",
     "model_builder.py/classes/NaiveUnevenModel.md",
     "model_builder.py/classes/NaiveModel.md",
